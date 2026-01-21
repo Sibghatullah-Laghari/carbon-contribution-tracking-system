@@ -1,43 +1,49 @@
 package com.cctrs.backend.controller;
 
-import com.cctrs.backend.dto.ActivityRequestDto;
-import com.cctrs.backend.dto.MonthlyStatusDto;
-import com.cctrs.backend.entity.Activity;
-import com.cctrs.backend.entity.User;
-import com.cctrs.backend.repository.UserRepository;
-import com.cctrs.backend.service.ActivityService;
-import com.cctrs.backend.service.MonthlySummaryService;
+import com.cctrs.backend.model.Activity;
+import com.cctrs.backend.repository.ActivityRepository;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/activities")
 public class ActivityController {
 
-    private final ActivityService activityService;
-    private final MonthlySummaryService summaryService;
-    private final UserRepository userRepository;
+    private final ActivityRepository activityRepository;
 
-    public ActivityController(ActivityService activityService,
-                              MonthlySummaryService summaryService,
-                              UserRepository userRepository) {
-        this.activityService = activityService;
-        this.summaryService = summaryService;
-        this.userRepository = userRepository;
+    public ActivityController(ActivityRepository activityRepository) {
+        this.activityRepository = activityRepository;
     }
 
-    // USER submits activity
-    @PostMapping("/activities/submit")
-    public Activity submitActivity(@RequestBody ActivityRequestDto dto) {
-        return activityService.submitActivity(dto);
+    // 1️⃣ USER: submit activity
+    @PostMapping
+    public String submitActivity(@RequestBody Activity activity) {
+
+        activity.setStatus("PENDING");
+        activity.setCreatedAt(LocalDateTime.now());
+
+        activityRepository.save(activity);
+        return "Activity submitted for approval";
     }
 
-    // USER checks monthly status
-    @GetMapping("/users/{userId}/status/{month}")
-    public MonthlyStatusDto getMonthlyStatus(@PathVariable Long userId,
-                                             @PathVariable String month) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    // 2️⃣ USER: view own activities
+    @GetMapping("/user/{userId}")
+    public List<Activity> getUserActivities(@PathVariable Long userId) {
+        return activityRepository.findByUserId(userId);
+    }
 
-        return summaryService.calculateMonthlyStatus(user, month);
+    // 3️⃣ ADMIN: view pending activities
+    @GetMapping("/pending")
+    public List<Activity> getPendingActivities() {
+        return activityRepository.findPendingActivities();
+    }
+
+    // 4️⃣ ADMIN: approve activity
+    @PutMapping("/approve/{activityId}")
+    public String approveActivity(@PathVariable("id") Long id) {
+        activityRepository.approveActivity(id);
+        return "Activity approved";
     }
 }
