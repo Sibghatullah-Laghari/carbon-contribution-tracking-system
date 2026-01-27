@@ -21,7 +21,7 @@ public class ReportService {
     /**
      * Get monthly summary report with badge
      */
-    public MonthlySummaryDTO getMonthlySummary(int userId, int month, int year) {
+    public MonthlySummaryDTO getMonthlySummary(Long userId, int month, int year) {
         int total = activityRepository.getTotalPointsByUser(userId);
         int monthly = activityRepository.getMonthlyPoints(userId, month, year);
         int count = activityRepository.getMonthlyActivityCount(userId, month, year);
@@ -34,7 +34,7 @@ public class ReportService {
     /**
      * Get monthly graph data
      */
-    public MonthlyGraphDTO getMonthlyGraph(int userId, int year) {
+    public MonthlyGraphDTO getMonthlyGraph(Long userId, int year) {
         List<Integer> monthlyData = activityRepository.getMonthWisePoints(userId, year);
         return new MonthlyGraphDTO(year, monthlyData);
     }

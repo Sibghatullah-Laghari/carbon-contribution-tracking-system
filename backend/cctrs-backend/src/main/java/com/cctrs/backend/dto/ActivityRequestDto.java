@@ -12,15 +12,23 @@ public class ActivityRequestDto {
     @jakarta.validation.constraints.Min(value = 0, message = "Points must be non-negative")
     private Integer points;
 
-    // ✅ Default constructor (VERY IMPORTANT for JSON deserialization)
+    private String description;
+
+    @jakarta.validation.constraints.Min(value = 1, message = "Declared quantity must be at least 1")
+    private Integer declaredQuantity;
+
+    // ✅ Default constructor
     public ActivityRequestDto() {
     }
 
     // ✅ Constructor
-    public ActivityRequestDto(Long userId, String activityType, Integer points) {
+    public ActivityRequestDto(Long userId, String activityType, Integer points, String description,
+            Integer declaredQuantity) {
         this.userId = userId;
         this.activityType = activityType;
         this.points = points;
+        this.description = description;
+        this.declaredQuantity = declaredQuantity;
     }
 
     // ✅ Getters & Setters
@@ -47,5 +55,21 @@ public class ActivityRequestDto {
 
     public void setPoints(Integer points) {
         this.points = points;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Integer getDeclaredQuantity() {
+        return declaredQuantity;
+    }
+
+    public void setDeclaredQuantity(Integer declaredQuantity) {
+        this.declaredQuantity = declaredQuantity;
     }
 }

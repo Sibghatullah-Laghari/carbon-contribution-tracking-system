@@ -20,8 +20,7 @@ public class UserRepository {
     }
 
     public User save(User user) {
-
-        String sql = "INSERT INTO users (name, email, username, role, points) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (name, email, username, password, role, points, email_verified, verification_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -30,8 +29,11 @@ public class UserRepository {
             ps.setString(1, user.getName());
             ps.setString(2, user.getEmail());
             ps.setString(3, user.getUsername());
-            ps.setString(4, user.getRole());
-            ps.setInt(5, user.getPoints());
+            ps.setString(4, user.getPassword());
+            ps.setString(5, user.getRole());
+            ps.setInt(6, user.getPoints());
+            ps.setBoolean(7, user.getEmailVerified() != null ? user.getEmailVerified() : false);
+            ps.setString(8, user.getVerificationToken());
             return ps;
         }, keyHolder);
 

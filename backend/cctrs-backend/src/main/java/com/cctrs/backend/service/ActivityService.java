@@ -1,8 +1,10 @@
 package com.cctrs.backend.service;
 
 import com.cctrs.backend.model.Activity;
+import com.cctrs.backend.model.ActivityType;
 import com.cctrs.backend.model.User;
 import com.cctrs.backend.repository.ActivityRepository;
+import com.cctrs.backend.repository.UserDailyLimitRepository;
 import com.cctrs.backend.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,20 +22,22 @@ public class ActivityService {
     private final UserService userService;
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final UserDailyLimitRepository dailyLimitRepository;
 
     public ActivityService(ActivityRepository activityRepository,
             UserService userService,
             EmailService emailService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            UserDailyLimitRepository dailyLimitRepository) {
         this.activityRepository = activityRepository;
         this.userService = userService;
         this.emailService = emailService;
         this.userRepository = userRepository;
+        this.dailyLimitRepository = dailyLimitRepository;
     }
 
-    // User submits activity
-    public Activity createActivity(Activity activity) {
-
+    // User declares activity (Stage 1)
+    public Activity declareActivity(Activity activity) {
         // Validation
         if (activity.getUserId() == null || activity.getUserId() <= 0) {
             throw new IllegalArgumentException("Valid userId is required");
@@ -41,19 +45,49 @@ public class ActivityService {
         if (activity.getActivityType() == null || activity.getActivityType().trim().isEmpty()) {
             throw new IllegalArgumentException("Activity type is required");
         }
-        if (activity.getPoints() == null || activity.getPoints() < 0) {
-            throw new IllegalArgumentException("Points must be a non-negative number");
+
+        // Check User existence
+        userService.getUserById(activity.getUserId());
+
+        // Default verification flag
+        String flag = "OK";
+
+        // RULE 1: Daily Limit Check
+        // Update daily limits and check bounds
+        // For declaration, we increment limits. If limit exceeded -> FLAGGED
+        int quantity = activity.getDeclaredQuantity() != null ? activity.getDeclaredQuantity() : 1;
+
+        // Check if total activities exceed limit (Rule: Max 10 activities per day)
+        // Need to fetch current count first or rely on repository check logic
+        // We will increment first, then check.
+        // dailyLimitRepository logic uses void increment. We should update repository
+        // or just assume increment works.
+        // To be safe and strict, let's fetch daily limit record.
+
+        dailyLimitRepository.incrementActivityCount(activity.getUserId(), java.time.LocalDate.now());
+
+        // Check "Too many activities" rule
+        com.cctrs.backend.model.UserDailyLimit limit = dailyLimitRepository.findByUserIdAndDate(activity.getUserId(),
+                java.time.LocalDate.now());
+        if (limit != null && limit.getActivityCount() > 10) {
+            flag = "FLAGGED";
         }
 
-        // Verify user exists
-        try {
-            userService.getUserById(activity.getUserId());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("User not found with ID: " + activity.getUserId());
+        if (ActivityType.TREE_PLANTATION.getDisplayName().equalsIgnoreCase(activity.getActivityType()) ||
+                "Tree Plantation".equalsIgnoreCase(activity.getActivityType())) {
+            dailyLimitRepository.incrementTreeCount(activity.getUserId(), java.time.LocalDate.now(), quantity);
+
+            // Check Tree Limit (Rule: Max 5 trees per day)
+            // Re-fetch limit to get updated tree count
+            limit = dailyLimitRepository.findByUserIdAndDate(activity.getUserId(), java.time.LocalDate.now());
+            if (limit != null && limit.getTreesDeclared() > 5) {
+                flag = "FLAGGED";
+            }
         }
 
-        // Set default status
-        activity.setStatus("PENDING");
+        // Set Status
+        activity.setStatus("DECLARED");
+        activity.setVerificationFlag(flag);
 
         // Set timestamp if not provided
         if (activity.getCreatedAt() == null) {
@@ -61,6 +95,53 @@ public class ActivityService {
         }
 
         return activityRepository.save(activity);
+    }
+
+    // Legacy method support (redirects to declareActivity or handles direct
+    // creation if needed)
+    // Keeping this signature to avoid breaking existing tests if they call
+    // createActivity directly
+    // But updating logic to match new flow
+    public Activity createActivity(Activity activity) {
+        return declareActivity(activity);
+    }
+
+    // Submit Proof (Stage 2)
+    public void submitProof(Long activityId, Long userId, String proofImage, Double lat, Double lon,
+            LocalDateTime proofTime) {
+        Activity activity = activityRepository.findById(activityId);
+        if (activity == null) {
+            throw new IllegalArgumentException("Activity not found");
+        }
+
+        if (!activity.getUserId().equals(userId)) {
+            throw new SecurityException("You are not authorized to submit proof for this activity");
+        }
+
+        if (!"DECLARED".equals(activity.getStatus())) {
+            throw new IllegalArgumentException("Activity is not in DECLARED state");
+        }
+
+        // Update proof details
+        // Using repository method or JDBC template directly? ActivityRepository needs
+        // an update method or we extend it here.
+        // Better to add method in Repository or use setters and save? Repository.save
+        // handles INSERT usually.
+        // ActivityRepository has updateStatus but not full update.
+        // I will add updateProofDetails to ActivityRepository in next step or use a
+        // custom query here via the repo?
+        // Wait, I can't modify Repo class here. I need to rely on what's available or
+        // add to Repo.
+        // I'll assume I can add `updateProof` to `ActivityRepository`.
+        // For now, let's throw if not implemented, or better, implement `updateProof`
+        // implementation in Repo first.
+        // Or I can use setters and a `save` if `save` handles updates (check `save`
+        // implementation).
+        // `save` implementation had `INSERT` SQL. It does NOT handle update.
+        // So I must add an update method to ActivityRepository.
+
+        // I'll call a method I will create in ActivityRepository
+        activityRepository.submitProof(activityId, proofImage, lat, lon, proofTime);
     }
 
     public List<Activity> getAllActivities() {
@@ -100,6 +181,14 @@ public class ActivityService {
         if ("APPROVED".equals(activity.getStatus())) {
             throw new IllegalArgumentException("Activity is already approved");
         }
+
+        // Ensure Proof is Submitted (Optional: Can admin approve DECLARED without
+        // proof? Maybe, but usually needs proof)
+        // Prompt says: Stage 3: Admin verification.
+        // If status is DECLARED, admin can still approve (maybe overriding proof
+        // requirement), or we should enforce.
+        // Let's allow approval from any state for Admin flexibility, or warn. I'll
+        // stick to logic "Admin approves".
 
         // Update status
         activityRepository.updateStatus(activityId, "APPROVED");

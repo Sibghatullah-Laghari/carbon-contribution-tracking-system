@@ -15,6 +15,9 @@ public class ActivityRowMapper implements RowMapper<Activity> {
         activity.setId(rs.getLong("id"));
         activity.setUserId(rs.getLong("user_id"));
         activity.setActivityType(rs.getString("activity_type"));
+        activity.setDescription(rs.getString("description"));
+        activity.setDeclaredQuantity(rs.getInt("declared_quantity"));
+        activity.setVerificationFlag(rs.getString("verification_flag"));
         activity.setPoints(rs.getInt("points"));
         activity.setStatus(rs.getString("status"));
         activity.setRejectionReason(rs.getString("rejection_reason"));

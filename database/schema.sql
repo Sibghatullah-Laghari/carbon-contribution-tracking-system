@@ -33,3 +33,31 @@ CREATE INDEX idx_status ON activities(status);
 
 ALTER TABLE users ADD COLUMN password VARCHAR(255);
 ALTER TABLE users ADD COLUMN role VARCHAR(50);
+
+ALTER TABLE activities ADD COLUMN activity_type VARCHAR(50);
+ALTER TABLE activities ADD COLUMN description TEXT;
+ALTER TABLE activities ADD COLUMN declared_quantity INT DEFAULT 0;
+ALTER TABLE activities ADD COLUMN proof_image VARCHAR(255);
+ALTER TABLE activities ADD COLUMN latitude DOUBLE;
+ALTER TABLE activities ADD COLUMN longitude DOUBLE;
+ALTER TABLE activities ADD COLUMN proof_time TIMESTAMP;
+ALTER TABLE activities ADD COLUMN verification_flag VARCHAR(20) DEFAULT 'OK';
+
+CREATE TABLE user_daily_limits (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    date DATE NOT NULL,
+    activity_count INT DEFAULT 0,
+    trees_declared INT DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, date)
+);
+
+CREATE TABLE proof_sessions (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    activity_id BIGINT,
+    start_time TIMESTAMP,
+    expiry_time TIMESTAMP,
+    status VARCHAR(20)
+);

@@ -23,7 +23,7 @@ public class ActivityRepository {
     }
 
     public Activity save(Activity activity) {
-        String sql = "INSERT INTO activities (user_id, activity_type, points, status, created_at) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO activities (user_id, activity_type, points, status, created_at, description, declared_quantity, verification_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -34,6 +34,9 @@ public class ActivityRepository {
             ps.setInt(3, activity.getPoints());
             ps.setString(4, activity.getStatus());
             ps.setObject(5, activity.getCreatedAt());
+            ps.setString(6, activity.getDescription());
+            ps.setInt(7, activity.getDeclaredQuantity() != null ? activity.getDeclaredQuantity() : 0);
+            ps.setString(8, activity.getVerificationFlag());
             return ps;
         }, keyHolder);
 
@@ -51,27 +54,30 @@ public class ActivityRepository {
         return activities.isEmpty() ? null : activities.get(0);
     }
 
-    public int getTotalPointsByUser(int userId) {
+    public int getTotalPointsByUser(Long userId) {
         String sql = "SELECT COALESCE(SUM(points),0) FROM activities " +
                 "WHERE user_id=? AND status='APPROVED'";
-        return jdbcTemplate.queryForObject(sql, Integer.class, userId);
+        Integer result = jdbcTemplate.queryForObject(sql, Integer.class, userId);
+        return result != null ? result : 0;
     }
 
-    public int getMonthlyPoints(int userId, int month, int year) {
+    public int getMonthlyPoints(Long userId, int month, int year) {
         String sql = "SELECT COALESCE(SUM(points),0) FROM activities " +
                 "WHERE user_id=? AND status='APPROVED' " +
                 "AND MONTH(created_at)=? AND YEAR(created_at)=?";
-        return jdbcTemplate.queryForObject(sql, Integer.class, userId, month, year);
+        Integer result = jdbcTemplate.queryForObject(sql, Integer.class, userId, month, year);
+        return result != null ? result : 0;
     }
 
-    public int getMonthlyActivityCount(int userId, int month, int year) {
+    public int getMonthlyActivityCount(Long userId, int month, int year) {
         String sql = "SELECT COUNT(*) FROM activities " +
                 "WHERE user_id=? AND status='APPROVED' " +
                 "AND MONTH(created_at)=? AND YEAR(created_at)=?";
-        return jdbcTemplate.queryForObject(sql, Integer.class, userId, month, year);
+        Integer result = jdbcTemplate.queryForObject(sql, Integer.class, userId, month, year);
+        return result != null ? result : 0;
     }
 
-    public List<Integer> getMonthWisePoints(int userId, int year) {
+    public List<Integer> getMonthWisePoints(Long userId, int year) {
         String sql = "SELECT MONTH(created_at) as m, COALESCE(SUM(points),0) as p " +
                 "FROM activities WHERE user_id=? AND status='APPROVED' " +
                 "AND YEAR(created_at)=? " +
@@ -126,5 +132,11 @@ public class ActivityRepository {
 
     public List<Activity> getActivitiesByUser(Long userId) {
         return findByUserId(userId);
+    }
+
+    public void submitProof(Long activityId, String proofImage, Double lat, Double lon,
+            java.time.LocalDateTime proofTime) {
+        String sql = "UPDATE activities SET proof_image = ?, latitude = ?, longitude = ?, proof_time = ?, status = 'PROOF_SUBMITTED' WHERE id = ?";
+        jdbcTemplate.update(sql, proofImage, lat, lon, proofTime, activityId);
     }
 }

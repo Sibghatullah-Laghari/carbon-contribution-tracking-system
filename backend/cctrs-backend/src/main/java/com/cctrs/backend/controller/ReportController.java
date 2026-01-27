@@ -54,7 +54,7 @@ public class ReportController {
         }
 
         MonthlySummaryDTO summary = reportService.getMonthlySummary(
-                Math.toIntExact(user.getId()), month, year);
+                user.getId(), month, year);
         return ResponseEntity.ok(ApiResponse.success("Monthly summary retrieved", summary));
     }
 
@@ -77,7 +77,7 @@ public class ReportController {
         }
 
         MonthlyGraphDTO graph = reportService.getMonthlyGraph(
-                Math.toIntExact(user.getId()), year);
+                user.getId(), year);
         return ResponseEntity.ok(ApiResponse.success("Monthly graph data retrieved", graph));
     }
 }

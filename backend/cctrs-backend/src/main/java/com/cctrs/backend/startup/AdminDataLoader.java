@@ -12,9 +12,12 @@ public class AdminDataLoader implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminDataLoader.class);
     private final UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public AdminDataLoader(UserRepository userRepository) {
+    public AdminDataLoader(UserRepository userRepository,
+            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -28,10 +31,11 @@ public class AdminDataLoader implements CommandLineRunner {
                         "admin@cctrs.com",
                         "admin",
                         "ADMIN",
-                        0
-                );
+                        0);
+                admin.setPassword(passwordEncoder.encode("admin123"));
+                admin.setEmailVerified(true);
                 userRepository.save(admin);
-                logger.info("Admin user created successfully");
+                logger.info("Admin user created successfully with encoded password");
             } else {
                 logger.info("Admin user already exists");
             }

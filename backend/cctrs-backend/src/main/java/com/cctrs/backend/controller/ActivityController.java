@@ -75,13 +75,49 @@ public class ActivityController {
         activity.setUserId(user.getId());
         activity.setActivityType(requestDto.getActivityType());
         activity.setPoints(requestDto.getPoints());
+        activity.setDescription(requestDto.getDescription());
+        activity.setDeclaredQuantity(requestDto.getDeclaredQuantity());
         activity.setCreatedAt(LocalDateTime.now());
 
-        Activity savedActivity = activityService.createActivity(activity);
+        // Use declareActivity for the new flow (Stage 1)
+        Activity savedActivity = activityService.declareActivity(activity);
         logger.info("Activity created successfully with ID: {}", savedActivity.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created("Activity submitted successfully", savedActivity));
+                .body(ApiResponse.created("Activity declared successfully", savedActivity));
+    }
+
+    /**
+     * Stage 2: Submit Proof for an Activity
+     */
+    @PostMapping("/{id}/proof")
+    public ResponseEntity<ApiResponse<String>> submitProof(
+            @PathVariable Long id,
+            @RequestParam String proofImage,
+            @RequestParam Double latitude,
+            @RequestParam Double longitude) {
+
+        // Extract user from JWT
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null) {
+            throw new IllegalArgumentException("User not authenticated");
+        }
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+
+        // Verify ownership handled in service or here.
+        // Best to fetch activity here or pass owner ID to service to verify.
+        // Let's pass user.getId() to service to verify ownership.
+
+        activityService.submitProof(id, user.getId(), proofImage, latitude, longitude, LocalDateTime.now());
+
+        return ResponseEntity.ok(ApiResponse.success("Proof submitted successfully", "PROOF_SUBMITTED"));
     }
 
     /**
@@ -134,8 +170,10 @@ public class ActivityController {
             throw new IllegalArgumentException("Valid status is required");
         }
 
-        if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
-            throw new IllegalArgumentException("Status must be PENDING, APPROVED, or REJECTED");
+        if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")
+                && !status.equals("DECLARED") && !status.equals("PROOF_SUBMITTED") && !status.equals("FLAGGED")) {
+            throw new IllegalArgumentException(
+                    "Status must be one of: DECLARED, PROOF_SUBMITTED, PENDING, APPROVED, REJECTED, FLAGGED");
         }
 
         List<Activity> activities = activityService.getActivitiesByStatus(status);
