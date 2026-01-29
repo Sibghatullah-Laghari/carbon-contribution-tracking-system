@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axios.js";
 
 export default function StartProof() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const navigate = useNavigate();
+  const locationState = useLocation();
   const [activityId, setActivityId] = useState("");
   const [proofId, setProofId] = useState("");
   const [stream, setStream] = useState(null);
@@ -21,18 +24,22 @@ export default function StartProof() {
     };
   }, [stream]);
 
-  const startSession = async () => {
+  const startSession = async (id) => {
     setError("");
     setMessage("");
     try {
-      const res = await api.post(`/api/proof/start?activityId=${activityId}`);
+      const res = await api.post(`/api/proof/start?activityId=${id}`);
       const data = res?.data?.data || res?.data;
       const receivedProofId = data?.id || data?.proofId || "";
       if (!receivedProofId) {
         throw new Error("Proof session ID not found");
       }
       setProofId(receivedProofId);
-      setMessage("Proof session started");
+      sessionStorage.setItem(
+        "proofSession",
+        JSON.stringify({ activityId: id, proofId: receivedProofId })
+      );
+      setMessage("Verification started");
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed";
       setError(msg);
@@ -83,65 +90,117 @@ export default function StartProof() {
     );
   };
 
+  const submitProof = async () => {
+    setError("");
+    setMessage("");
+    if (!proofId || !photoDataUrl || !location.lat || !location.lon) {
+      setError("Capture photo and location before submitting proof");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      if (imageFile) {
+        formData.append("proofImageFile", imageFile);
+      } else {
+        formData.append("proofImage", photoDataUrl);
+      }
+      formData.append("latitude", String(location.lat));
+      formData.append("longitude", String(location.lon));
+      formData.append("proofTime", new Date().toISOString().replace("Z", ""));
+
+      await api.post(`/api/activities/${activityId}/proof`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setMessage("Proof submitted successfully! Redirecting...");
+      sessionStorage.removeItem("proofSession");
+      setTimeout(() => navigate("/my-activities"), 2000);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to submit proof";
+      setError(msg);
+    }
+  };
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("proofSession");
+    const parsed = stored ? JSON.parse(stored) : null;
+    const state = locationState?.state || {};
+    const id = state.activityId || parsed?.activityId || "";
+    const pid = state.proofId || parsed?.proofId || "";
+    if (!id) {
+      setError("Start a new activity to begin proof.");
+      return;
+    }
+    setActivityId(id);
+    if (pid) {
+      setProofId(pid);
+    } else {
+      startSession(id);
+    }
+    openCamera();
+    getLocation();
+  }, []);
+
   return (
     <div className="page">
       <div className="card">
-        <h1>Start Proof</h1>
-        <label>
-          Activity ID
-          <input
-            type="number"
-            value={activityId}
-            onChange={(e) => setActivityId(e.target.value)}
-            min="1"
-          />
-        </label>
-        <div className="row">
-          <button className="btn" onClick={startSession} disabled={!activityId}>
-            Start Proof Session
-          </button>
-          <button className="btn" onClick={openCamera}>
-            Open Camera
-          </button>
-          <button className="btn" onClick={capturePhoto} disabled={!stream}>
-            Capture Photo
-          </button>
-          <button className="btn" onClick={getLocation}>
-            Get GPS
-          </button>
+        <div className="card-header">
+          <div>
+            <div className="card-kicker">Step 2</div>
+            <h1>Verify Your Activity</h1>
+          </div>
+          <div className="card-hint">
+            Capture a quick photo and confirm your location.
+          </div>
         </div>
-
-        {message && <div className="success">{message}</div>}
-        {error && <div className="error">{error}</div>}
-
-        <div className="section">
-          <div>Proof ID: {proofId || "-"}</div>
-          <div>Latitude: {location.lat ?? "-"}</div>
-          <div>Longitude: {location.lon ?? "-"}</div>
-        </div>
-
-        <div className="media">
-          <video ref={videoRef} autoPlay playsInline className="video" />
-          <canvas ref={canvasRef} className="hidden" />
-          {photoDataUrl && (
-            <img src={photoDataUrl} alt="preview" className="preview" />
-          )}
-        </div>
-
-        <div className="section">
-          <strong>Prepared Payload (not submitted)</strong>
-          <pre className="code">
-{JSON.stringify(
-  {
-    proofId,
-    imageFile: imageFile ? imageFile.name : null,
-    latitude: location.lat,
-    longitude: location.lon
-  },
-  null,
-  2
-)}
-          </pre>
+        {error && (
+          <div className="error">
+            {error} {activityId ? "" : <Link to="/submit-activity">Submit activity</Link>}
+          </div>
+        )}
+        <div className="proof-grid">
+          <div className="proof-panel">
+            <div className="proof-status">
+              <div className="status-item">
+                <span>Verification</span>
+                <strong>{proofId ? "In progress" : "Starting..."}</strong>
+              </div>
+              <div className="status-item">
+                <span>Location</span>
+                <strong>{location.lat ? "Captured" : "Waiting..."}</strong>
+              </div>
+              <div className="status-item">
+                <span>Photo</span>
+                <strong>{photoDataUrl ? "Captured" : "Waiting..."}</strong>
+              </div>
+            </div>
+            <div className="row">
+              <button className="btn" onClick={openCamera}>
+                Reopen Camera
+              </button>
+              <button className="btn" onClick={capturePhoto} disabled={!stream}>
+                Capture Photo
+              </button>
+              <button className="btn" onClick={getLocation}>
+                Refresh GPS
+              </button>
+            </div>
+            {message && <div className="success">{message}</div>}
+            <button
+              className="primary-btn"
+              onClick={submitProof}
+              disabled={!proofId || !imageFile || !location.lat || !location.lon}
+            >
+              Submit Verification
+            </button>
+          </div>
+          <div className="proof-preview">
+            <video ref={videoRef} autoPlay playsInline className="video" />
+            <canvas ref={canvasRef} className="hidden" />
+            {photoDataUrl && (
+              <img src={photoDataUrl} alt="proof preview" className="preview" />
+            )}
+          </div>
         </div>
       </div>
     </div>

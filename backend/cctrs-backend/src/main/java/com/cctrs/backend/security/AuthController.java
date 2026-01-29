@@ -56,7 +56,7 @@ public class AuthController {
 
     @io.swagger.v3.oas.annotations.Operation(summary = "User login")
     @PostMapping("/login")
-    public ApiResponse<String> login(@jakarta.validation.Valid @RequestBody LoginRequest req) {
+    public ApiResponse<com.cctrs.backend.dto.LoginResponse> login(@jakarta.validation.Valid @RequestBody LoginRequest req) {
         User user = userRepository.findByEmail(req.getEmail());
 
         if (user == null || !encoder.matches(req.getPassword(), user.getPassword())) {
@@ -69,7 +69,9 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(user.getEmail());
         logger.info("User logged in: {}", req.getEmail());
-        return ApiResponse.success("Login successful", token);
+        
+        com.cctrs.backend.dto.LoginResponse loginRes = new com.cctrs.backend.dto.LoginResponse(token, user.getRole(), user.getEmail());
+        return ApiResponse.success("Login successful", loginRes);
     }
 
     @GetMapping("/verify")

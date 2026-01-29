@@ -3,11 +3,14 @@ package com.cctrs.backend.controller;
 import com.cctrs.backend.dto.ApiResponse;
 import com.cctrs.backend.dto.UserRequestDto;
 import com.cctrs.backend.model.User;
+import com.cctrs.backend.repository.UserRepository;
 import com.cctrs.backend.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +25,11 @@ public class UserController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     private final UserService userService;
+    private final UserRepository userRepository;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserRepository userRepository) {
         this.userService = userService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -83,6 +88,30 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("User not found", 404));
         }
         return ResponseEntity.ok(ApiResponse.success("User retrieved", user));
+    }
+
+    /**
+     * Retrieve the currently authenticated user's profile
+     *
+     * @return User object for the logged-in user
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<User>> getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null) {
+            throw new IllegalArgumentException("User not authenticated");
+        }
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("User not found", 404));
+        }
+
+        logger.info("Current user fetched: {}", email);
+        return ResponseEntity.ok(ApiResponse.success("Current user retrieved", user));
     }
 
 }

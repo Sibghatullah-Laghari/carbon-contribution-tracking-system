@@ -1,10 +1,13 @@
 package com.cctrs.backend.controller;
 
 import com.cctrs.backend.dto.ApiResponse;
+import com.cctrs.backend.model.Activity;
 import com.cctrs.backend.dto.RejectionRequest;
 import com.cctrs.backend.service.ActivityService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin/activities")
@@ -15,6 +18,18 @@ public class AdminActivityController {
 
     public AdminActivityController(ActivityService activityService) {
         this.activityService = activityService;
+    }
+
+    /**
+     * Retrieve all activities in the system for admin review
+     * Path: GET /admin/activities
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get all activities for admin review")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Activity>>> getAllActivitiesForAdmin() {
+        logger.info("Admin fetching all activities for review");
+        List<Activity> activities = activityService.getAllActivities();
+        return ResponseEntity.ok(ApiResponse.success("All activities retrieved for admin", activities));
     }
 
     /**

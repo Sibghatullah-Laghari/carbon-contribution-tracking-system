@@ -1,66 +1,57 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import DeclareActivity from "./pages/DeclareActivity.jsx";
-import MyActivities from "./pages/MyActivities.jsx";
-import StartProof from "./pages/StartProof.jsx";
-import Admin from "./pages/Admin.jsx";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Home from './pages/public/Home';
+import Login from './pages/public/Login';
+import Signup from './pages/public/Signup';
+import DashboardLayout from './layout/DashboardLayout';
+import Dashboard from './pages/dashboard/Dashboard';
+import SubmitActivity from './pages/dashboard/SubmitActivity';
+import MyActivities from './pages/dashboard/MyActivities';
+import MonthlyProgress from './pages/dashboard/MonthlyProgress';
+import Badges from './pages/dashboard/Badges';
+import Leaderboard from './pages/dashboard/Leaderboard';
+import Admin from './pages/dashboard/Admin';
+import StartProof from './pages/StartProof';
 
-const RequireAuth = ({ children }) => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  return token ? children : <Navigate to="/login" />;
 };
 
-export default function App() {
+const AdminRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  return (token && role === 'ADMIN') ? children : <Navigate to="/dashboard" />;
+};
+
+function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/dashboard"
-        element={
-          <RequireAuth>
-            <Dashboard />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/declare"
-        element={
-          <RequireAuth>
-            <DeclareActivity />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/activities"
-        element={
-          <RequireAuth>
-            <MyActivities />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/proof"
-        element={
-          <RequireAuth>
-            <StartProof />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/admin"
-        element={
-          <RequireAuth>
-            <Admin />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <DashboardLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="submit-activity" element={<SubmitActivity />} />
+          <Route path="my-activities" element={<MyActivities />} />
+          <Route path="monthly-progress" element={<MonthlyProgress />} />
+          <Route path="badges" element={<Badges />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="proof" element={<StartProof />} />
+        </Route>
+      </Routes>
+    </Router>
   );
 }
+
+export default App;

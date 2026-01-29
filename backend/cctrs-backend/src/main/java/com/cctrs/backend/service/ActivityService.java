@@ -85,7 +85,20 @@ public class ActivityService {
             }
         }
 
-        // Set Status
+        if (activity.getPoints() == null || activity.getPoints() <= 0) {
+            int basePointsPerUnit = 1;
+            String type = activity.getActivityType() != null ? activity.getActivityType().toLowerCase() : "";
+            if (type.contains("tree")) {
+                basePointsPerUnit = 10;
+            } else if (type.contains("transport")) {
+                basePointsPerUnit = 2;
+            } else if (type.contains("recycling")) {
+                basePointsPerUnit = 5;
+            }
+            int computedPoints = quantity * basePointsPerUnit;
+            activity.setPoints(computedPoints);
+        }
+
         activity.setStatus("DECLARED");
         activity.setVerificationFlag(flag);
 

@@ -13,10 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Base64;
 
 /**
  * ActivityController handles all activity-related API endpoints
@@ -81,11 +84,6 @@ public class ActivityController {
             }
         }
 
-        Integer points = requestDto.getPoints();
-        if (points == null) {
-            points = 0;
-        }
-
         Integer declaredQuantity = requestDto.getDeclaredQuantity();
         if (declaredQuantity == null) {
             declaredQuantity = 1;
@@ -94,7 +92,7 @@ public class ActivityController {
         Activity activity = new Activity();
         activity.setUserId(user.getId());
         activity.setActivityType(activityType);
-        activity.setPoints(points);
+        activity.setPoints(requestDto.getPoints());
         activity.setDescription(requestDto.getDescription());
         activity.setDeclaredQuantity(declaredQuantity);
         activity.setCreatedAt(LocalDateTime.now());
@@ -113,9 +111,11 @@ public class ActivityController {
     @PostMapping("/{id}/proof")
     public ResponseEntity<ApiResponse<String>> submitProof(
             @PathVariable Long id,
+            @RequestParam(required = false) MultipartFile proofImageFile,
             @RequestParam(required = false) String proofImage,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) String proofTime,
             @RequestBody(required = false) Map<String, Object> body) {
 
         // Extract user from JWT
@@ -139,6 +139,22 @@ public class ActivityController {
         String resolvedProofImage = proofImage;
         Double resolvedLatitude = latitude;
         Double resolvedLongitude = longitude;
+        LocalDateTime resolvedProofTime = LocalDateTime.now();
+
+        if (proofImageFile != null && !proofImageFile.isEmpty()) {
+            try {
+                resolvedProofImage = Base64.getEncoder().encodeToString(proofImageFile.getBytes());
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Unable to read proof image");
+            }
+        }
+
+        if (proofTime != null && !proofTime.trim().isEmpty()) {
+            try {
+                resolvedProofTime = LocalDateTime.parse(proofTime);
+            } catch (Exception ignored) {
+            }
+        }
 
         if (body != null) {
             if (resolvedProofImage == null && body.get("proofImage") != null) {
@@ -154,6 +170,12 @@ public class ActivityController {
                 resolvedLongitude = value instanceof Number ? ((Number) value).doubleValue()
                         : Double.valueOf(value.toString());
             }
+            if (body.get("proofTime") != null) {
+                try {
+                    resolvedProofTime = LocalDateTime.parse(body.get("proofTime").toString());
+                } catch (Exception ignored) {
+                }
+            }
         }
 
         if (resolvedProofImage == null || resolvedLatitude == null || resolvedLongitude == null) {
@@ -161,20 +183,33 @@ public class ActivityController {
         }
 
         activityService.submitProof(id, user.getId(), resolvedProofImage, resolvedLatitude, resolvedLongitude,
-                LocalDateTime.now());
+                resolvedProofTime);
 
         return ResponseEntity.ok(ApiResponse.success("Proof submitted successfully", "PROOF_SUBMITTED"));
     }
 
     /**
-     * Retrieve all activities from the system
+     * Retrieve all activities for the logged-in user
      * 
-     * @return List of all activities (any status)
+     * @return List of activities by user (any status)
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<Activity>>> getAllActivities() {
-        List<Activity> activities = activityService.getAllActivities();
-        return ResponseEntity.ok(ApiResponse.success("All activities retrieved", activities));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null) {
+            throw new IllegalArgumentException("User not authenticated");
+        }
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+
+        List<Activity> activities = activityService.getActivitiesByUser(user.getId());
+        return ResponseEntity.ok(ApiResponse.success("User activities retrieved", activities));
     }
 
     /**
