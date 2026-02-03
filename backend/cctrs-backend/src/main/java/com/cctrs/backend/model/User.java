@@ -11,7 +11,6 @@ public class User {
     private String password;
     private String role;
     private Integer points;
-    private String verificationToken;
     private Boolean emailVerified;
     private LocalDateTime createdAt;
 
@@ -92,14 +91,6 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public String getVerificationToken() {
-        return verificationToken;
-    }
-
-    public void setVerificationToken(String verificationToken) {
-        this.verificationToken = verificationToken;
     }
 
     public Boolean getEmailVerified() {

@@ -20,7 +20,7 @@ public class UserRepository {
     }
 
     public User save(User user) {
-        String sql = "INSERT INTO users (name, email, username, password, role, points, email_verified, verification_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (name, email, username, password, role, points, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -33,7 +33,6 @@ public class UserRepository {
             ps.setString(5, user.getRole());
             ps.setInt(6, user.getPoints());
             ps.setBoolean(7, user.getEmailVerified() != null ? user.getEmailVerified() : false);
-            ps.setString(8, user.getVerificationToken());
             return ps;
         }, keyHolder);
 
@@ -91,21 +90,5 @@ public class UserRepository {
                 "SELECT * FROM users ORDER BY points DESC LIMIT ?",
                 new UserRowMapper(),
                 limit);
-    }
-
-    public User findByVerificationToken(String token) {
-        List<User> users = jdbcTemplate.query(
-                "SELECT * FROM users WHERE verification_token = ?",
-                new UserRowMapper(),
-                token);
-        return users.isEmpty() ? null : users.get(0);
-    }
-
-    public void updateVerificationToken(Long userId, String token) {
-        jdbcTemplate.update("UPDATE users SET verification_token = ? WHERE id = ?", token, userId);
-    }
-
-    public void verifyEmail(Long userId) {
-        jdbcTemplate.update("UPDATE users SET email_verified = TRUE, verification_token = NULL WHERE id = ?", userId);
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * UserController handles all user-related API endpoints
@@ -112,6 +113,39 @@ public class UserController {
 
         logger.info("Current user fetched: {}", email);
         return ResponseEntity.ok(ApiResponse.success("Current user retrieved", user));
+    }
+
+    /**
+     * Send OTP to the user's email for verification
+     *
+     * @param dto User request containing email
+     * @return Success message with OTP
+     */
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<String>> sendOtp(@RequestBody UserRequestDto dto) {
+        String otp = userService.generateAndSendOtp(dto.getEmail());
+        return ResponseEntity.ok(ApiResponse.success("OTP sent successfully", otp));
+    }
+
+    /**
+     * Verify the OTP received by the user
+     *
+     * @param request Map containing email and OTP
+     * @return Success message and created user if OTP is valid
+     */
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<User>> verifyOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+
+        if (userService.verifyOtp(email, otp)) {
+            User user = userService.createUserAfterOtpVerification(email);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.created("User created successfully", user));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Invalid or expired OTP", 400));
+        }
     }
 
 }

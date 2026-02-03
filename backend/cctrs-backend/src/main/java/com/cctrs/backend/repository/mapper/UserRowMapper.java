@@ -19,7 +19,6 @@ public class UserRowMapper implements RowMapper<User> {
         user.setPassword(rs.getString("password"));
         user.setRole(rs.getString("role"));
         user.setPoints(rs.getInt("points"));
-        user.setVerificationToken(rs.getString("verification_token"));
         user.setEmailVerified(rs.getBoolean("email_verified"));
         user.setCreatedAt(
                 rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null);

@@ -11,14 +11,12 @@ CREATE TABLE users (
     password VARCHAR(255),
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     points INT DEFAULT 0,
-    verification_token VARCHAR(255),
     email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_email ON users(email);
 CREATE INDEX idx_username ON users(username);
-CREATE INDEX idx_verification_token ON users(verification_token);
 
 CREATE TABLE activities (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -61,4 +59,3 @@ CREATE TABLE user_daily_limits (
     UNIQUE(user_id, date),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-

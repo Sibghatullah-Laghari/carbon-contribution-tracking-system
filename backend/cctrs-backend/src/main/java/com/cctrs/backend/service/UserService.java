@@ -3,16 +3,27 @@ package com.cctrs.backend.service;
 import com.cctrs.backend.model.User;
 import com.cctrs.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.Random;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final EmailService emailService;
+    private final Map<String, String> otpStorage = new ConcurrentHashMap<>();
+    private final Map<String, Long> otpExpiry = new ConcurrentHashMap<>();
+    private final Random random = new Random();
 
-    public UserService(UserRepository userRepository) {
+    @Autowired
+    public UserService(UserRepository userRepository, EmailService emailService) {
         this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     public User createUser(User user) {
@@ -85,5 +96,43 @@ public class UserService {
         } else {
             return "Bronze";
         }
+    }
+
+    public String generateAndSendOtp(String email) {
+        if (userRepository.findByEmail(email) != null) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+
+        String otp = String.format("%06d", random.nextInt(1000000));
+        otpStorage.put(email, otp);
+        otpExpiry.put(email, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5));
+
+        emailService.sendOtpEmail(email, otp);
+        return otp;
+    }
+
+    public boolean verifyOtp(String email, String otp) {
+        if (!otpStorage.containsKey(email) || !otpStorage.get(email).equals(otp)) {
+            return false;
+        }
+
+        if (System.currentTimeMillis() > otpExpiry.get(email)) {
+            otpStorage.remove(email);
+            otpExpiry.remove(email);
+            return false;
+        }
+
+        otpStorage.remove(email);
+        otpExpiry.remove(email);
+        return true;
+    }
+
+    public User createUserAfterOtpVerification(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setEmailVerified(true);
+        user.setRole("USER");
+        user.setPoints(0);
+        return userRepository.save(user);
     }
 }
