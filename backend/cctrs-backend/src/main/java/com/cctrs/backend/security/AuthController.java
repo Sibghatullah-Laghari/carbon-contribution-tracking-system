@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import com.cctrs.backend.dto.EmailRequest;
+
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -61,6 +63,27 @@ public class AuthController {
         logger.info("OTP generated for email: {}", request.getEmail());
 
         return ApiResponse.success("OTP sent to email", null);
+    }
+
+    @PostMapping("/resend-otp")
+    public ApiResponse<String> resendOtp(@jakarta.validation.Valid @RequestBody EmailRequest request) {
+        String emailKey = request.getEmail().trim().toLowerCase();
+        if (userRepository.findByEmail(request.getEmail()) != null) {
+            throw new IllegalArgumentException("Email already in use");
+        }
+        OtpEntry existing = otpStore.get(emailKey);
+        if (existing == null) {
+            throw new IllegalArgumentException("OTP request not found. Please sign up again.");
+        }
+
+        String otp = generateOtp();
+        Instant expiresAt = Instant.now().plus(OTP_EXPIRY_MINUTES, ChronoUnit.MINUTES);
+        otpStore.put(emailKey, new OtpEntry(otp, expiresAt, existing.request()));
+
+        emailService.sendOtpEmail(request.getEmail(), otp);
+        logger.info("OTP resent for email: {}", request.getEmail());
+
+        return ApiResponse.success("OTP resent to email", null);
     }
 
     @PostMapping("/verify-otp")

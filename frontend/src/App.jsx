@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Home from './pages/public/Home';
 import Login from './pages/public/Login';
 import Signup from './pages/public/Signup';
+import VerifyOtp from './pages/public/VerifyOtp';
 import DashboardLayout from './layout/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import SubmitActivity from './pages/dashboard/SubmitActivity';
@@ -31,6 +32,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-otp" element={<VerifyOtp />} />
 
         <Route
           path="/"

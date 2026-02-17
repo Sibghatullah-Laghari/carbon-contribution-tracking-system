@@ -4,9 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
+
+import jakarta.mail.internet.InternetAddress;
 
 @Service
 public class EmailService {
@@ -15,26 +19,33 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final String fromEmail;
+    private final String fromAddress;
 
     @Autowired
     public EmailService(JavaMailSender mailSender,
-                        @Value("${spring.mail.username}") String fromEmail) {
+                        @Value("${spring.mail.username:}") String fromEmail) {
         this.mailSender = mailSender;
-        this.fromEmail = fromEmail;
+        this.fromEmail = fromEmail == null ? "" : fromEmail.trim();
+        this.fromAddress = normalizeFromAddress(this.fromEmail);
+        validateMailConfiguration(this.fromEmail, mailSender);
     }
 
     public void sendApprovalEmail(String toEmail, String activityName) {
+        String resolvedFrom = getFromAddressOrLog("approval", toEmail);
+        if (resolvedFrom == null) {
+            return;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
+            message.setFrom(resolvedFrom);
             message.setTo(toEmail);
             message.setSubject("CCTRS Activity Approved 🌱");
             message.setText(
                     "Your activity '" + activityName + "' has been approved. Points have been added to your account.");
             mailSender.send(message);
             logger.info("Approval email sent successfully to: {}", toEmail);
-        } catch (Exception e) {
-            logger.error("Failed to send approval email to: {}. Error: {}", toEmail, e.getMessage());
+        } catch (MailException e) {
+            logger.error("Failed to send approval email to: {}. Error: {}", toEmail, e.getMessage(), e);
         }
     }
 
@@ -43,9 +54,13 @@ public class EmailService {
     }
 
     public void sendRejectionEmailWithReason(String toEmail, String activityName, String reason) {
+        String resolvedFrom = getFromAddressOrLog("rejection", toEmail);
+        if (resolvedFrom == null) {
+            return;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
+            message.setFrom(resolvedFrom);
             message.setTo(toEmail);
             message.setSubject("CCTRS Activity Rejected");
 
@@ -58,37 +73,93 @@ public class EmailService {
             message.setText(emailBody);
             mailSender.send(message);
             logger.info("Rejection email sent successfully to: {}", toEmail);
-        } catch (Exception e) {
-            logger.error("Failed to send rejection email to: {}. Error: {}", toEmail, e.getMessage());
+        } catch (MailException e) {
+            logger.error("Failed to send rejection email to: {}. Error: {}", toEmail, e.getMessage(), e);
         }
     }
 
     public void sendOtpEmail(String toEmail, String otp) {
+        String resolvedFrom = getFromAddressOrLog("otp", toEmail);
+        if (resolvedFrom == null) {
+            throw new IllegalArgumentException("Mail from address is not configured. Set spring.mail.username.");
+        }
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(resolvedFrom);
+        message.setTo(toEmail);
+        message.setSubject("Your CCTRS OTP Code");
+        message.setText("Your OTP code is: " + otp + "\n\nThis code expires in 5 minutes.");
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(toEmail);
-            message.setSubject("Your CCTRS OTP Code");
-            message.setText("Your OTP code is: " + otp + "\n\nThis code expires in 5 minutes.");
             mailSender.send(message);
             logger.info("OTP email sent successfully to: {}", toEmail);
-        } catch (Exception e) {
-            logger.error("Failed to send OTP email to: {}. Error: {}", toEmail, e.getMessage());
+        } catch (MailException e) {
+            logger.error("Failed to send OTP email to: {}. Error: {}", toEmail, e.getMessage(), e);
+            throw new IllegalArgumentException("Failed to send OTP email. Check mail configuration.", e);
         }
     }
 
     public void sendVerificationEmail(String toEmail, String token) {
+        String resolvedFrom = getFromAddressOrLog("verification", toEmail);
+        if (resolvedFrom == null) {
+            return;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
+            message.setFrom(resolvedFrom);
             message.setTo(toEmail);
             message.setSubject("CCTRS Email Verification");
             message.setText(
                     "Please verify your email by clicking the link: http://localhost:5173/verify?token=" + token);
             mailSender.send(message);
             logger.info("Verification email sent successfully to: {}", toEmail);
-        } catch (Exception e) {
-            logger.error("Failed to send verification email to: {}. Error: {}", toEmail, e.getMessage());
+        } catch (MailException e) {
+            logger.error("Failed to send verification email to: {}. Error: {}", toEmail, e.getMessage(), e);
         }
+    }
+
+    private String normalizeFromAddress(String configuredValue) {
+        if (configuredValue == null || configuredValue.trim().isEmpty()) {
+            logger.error("Mail from address is not configured. Set spring.mail.username.");
+            return null;
+        }
+        try {
+            InternetAddress address = new InternetAddress(configuredValue.trim());
+            address.validate();
+            String plainAddress = address.getAddress();
+            if (plainAddress == null || plainAddress.trim().isEmpty()) {
+                logger.error("Mail from address is invalid. Set a plain email in spring.mail.username.");
+                return null;
+            }
+            if (address.getPersonal() != null) {
+                logger.warn("Mail from address contained a personal name; using address only: {}", plainAddress);
+            }
+            return plainAddress;
+        } catch (Exception e) {
+            logger.error("Mail from address is invalid. Set a plain email in spring.mail.username.", e);
+            return null;
+        }
+    }
+
+    private void validateMailConfiguration(String fromEmail, JavaMailSender sender) {
+        if (sender instanceof JavaMailSenderImpl mailSenderImpl) {
+            if (mailSenderImpl.getHost() == null || mailSenderImpl.getHost().trim().isEmpty()) {
+                logger.warn("Mail host is not configured. Set spring.mail.host.");
+            }
+            if (mailSenderImpl.getPort() == 0) {
+                logger.warn("Mail port is not configured. Set spring.mail.port.");
+            }
+            if (mailSenderImpl.getUsername() == null || mailSenderImpl.getUsername().trim().isEmpty()) {
+                logger.warn("Mail username is not configured. Set spring.mail.username.");
+            }
+        } else if (fromEmail == null || fromEmail.trim().isEmpty()) {
+            logger.warn("Mail sender configuration could not be validated. Ensure spring.mail.* properties are set.");
+        }
+    }
+
+    private String getFromAddressOrLog(String context, String toEmail) {
+        if (fromAddress == null || fromAddress.trim().isEmpty()) {
+            logger.error("Cannot send {} email to {}: invalid mail from address. Set spring.mail.username.", context, toEmail);
+            return null;
+        }
+        return fromAddress;
     }
 }
