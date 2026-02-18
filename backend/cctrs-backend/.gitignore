@@ -31,3 +31,14 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs/crash dumps
+logs/
+*.log
+hs_err_pid*
+replay_pid*
