@@ -116,6 +116,34 @@ public class EmailService {
         }
     }
 
+    public void sendPasswordResetEmail(String toEmail, String resetLink) {
+        String resolvedFrom = getFromAddressOrLog("password-reset", toEmail);
+        if (resolvedFrom == null) {
+            throw new IllegalArgumentException("Mail from address is not configured. Set spring.mail.username.");
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(resolvedFrom);
+            message.setTo(toEmail);
+            message.setSubject("CCTRS - Reset Your Password");
+            message.setText(
+                    "Hello,\n\n" +
+                            "You requested to reset your CCTRS password.\n\n" +
+                            "Click the link below to reset your password:\n" +
+                            resetLink + "\n\n" +
+                            "This link will expire in 30 minutes.\n\n" +
+                            "If you did not request this, please ignore this email. " +
+                            "Your password will remain unchanged.\n\n" +
+                            "CCTRS Team"
+            );
+            mailSender.send(message);
+            logger.info("Password reset email sent successfully to: {}", toEmail);
+        } catch (MailException e) {
+            logger.error("Failed to send password reset email to: {}. Error: {}", toEmail, e.getMessage(), e);
+            throw new IllegalArgumentException("Failed to send password reset email. Check mail configuration.", e);
+        }
+    }
+
     private String normalizeFromAddress(String configuredValue) {
         if (configuredValue == null || configuredValue.trim().isEmpty()) {
             logger.error("Mail from address is not configured. Set spring.mail.username.");

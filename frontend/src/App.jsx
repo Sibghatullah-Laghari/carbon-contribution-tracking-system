@@ -4,6 +4,8 @@ import Home from './pages/public/Home';
 import Login from './pages/public/Login';
 import Signup from './pages/public/Signup';
 import VerifyOtp from './pages/public/VerifyOtp';
+import ForgotPassword from './pages/public/ForgotPassword';
+import ResetPassword from './pages/public/ResetPassword';
 import DashboardLayout from './layout/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import SubmitActivity from './pages/dashboard/SubmitActivity';
@@ -27,32 +29,34 @@ const AdminRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-otp" element={<VerifyOtp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <DashboardLayout />
-            </PrivateRoute>
-          }
-        >
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="submit-activity" element={<SubmitActivity />} />
-          <Route path="my-activities" element={<MyActivities />} />
-          <Route path="monthly-progress" element={<MonthlyProgress />} />
-          <Route path="badges" element={<Badges />} />
-          <Route path="leaderboard" element={<Leaderboard />} />
-          <Route path="admin" element={<AdminRoute><Admin /></AdminRoute>} />
-          <Route path="proof" element={<StartProof />} />
-        </Route>
-      </Routes>
-    </Router>
+          <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <DashboardLayout />
+                </PrivateRoute>
+              }
+          >
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="submit-activity" element={<SubmitActivity />} />
+            <Route path="my-activities" element={<MyActivities />} />
+            <Route path="monthly-progress" element={<MonthlyProgress />} />
+            <Route path="badges" element={<Badges />} />
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="admin" element={<AdminRoute><Admin /></AdminRoute>} />
+            <Route path="proof" element={<StartProof />} />
+          </Route>
+        </Routes>
+      </Router>
   );
 }
 
