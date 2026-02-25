@@ -31,7 +31,13 @@ export default function Login() {
       if (!resData || !resData.token) throw new Error("Invalid login response");
       localStorage.setItem("token", resData.token);
       localStorage.setItem("role", resData.role);
-      navigate("/dashboard");
+      localStorage.setItem("email", resData.email);
+
+      if (resData.role === "ADMIN") {
+        navigate("/admin-cctrs-2024");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Login failed");
     } finally {

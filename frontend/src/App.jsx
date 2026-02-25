@@ -16,6 +16,7 @@ import Leaderboard from './pages/dashboard/Leaderboard';
 import Admin from './pages/dashboard/Admin';
 import StartProof from './pages/StartProof';
 import Journey from './pages/public/Journey';
+import Recycling from './pages/public/Recycling';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -39,6 +40,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/journey" element={<Journey />} />
+          <Route path="/recycling" element={<Recycling />} />
 
           <Route
               path="/"
@@ -54,7 +56,7 @@ function App() {
             <Route path="monthly-progress" element={<MonthlyProgress />} />
             <Route path="badges" element={<Badges />} />
             <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="admin" element={<AdminRoute><Admin /></AdminRoute>} />
+            <Route path="admin-cctrs-2024" element={<AdminRoute><Admin /></AdminRoute>} />
             <Route path="proof" element={<StartProof />} />
           </Route>
         </Routes>

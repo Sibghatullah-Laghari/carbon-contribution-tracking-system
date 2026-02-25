@@ -51,7 +51,7 @@ const SubmitActivity = () => {
         throw new Error('Activity created but ID not returned');
       }
 
-      // Route PUBLIC_TRANSPORT to the GPS journey flow
+      // Route PUBLIC_TRANSPORT to GPS journey flow
       if (formData.activityType === 'PUBLIC_TRANSPORT') {
         sessionStorage.setItem('journeySession', JSON.stringify({
           activityId,
@@ -61,15 +61,22 @@ const SubmitActivity = () => {
         return;
       }
 
+      // Route RECYCLING to recycling proof flow
+      if (formData.activityType === 'RECYCLING') {
+        sessionStorage.setItem('recyclingSession', JSON.stringify({
+          activityId,
+          declaredKg: parseFloat(formData.quantity)
+        }));
+        navigate('/recycling', { state: { activityId, declaredKg: parseFloat(formData.quantity) } });
+        return;
+      }
+
       // For all other activity types → start proof session
       const proofRes = await api.post(`/api/proof/start?activityId=${activityId}`);
       const proofData = proofRes?.data?.data || proofRes?.data;
       const proofId = proofData?.id || proofData?.proofId;
 
-      // Navigate to proof step
-      navigate('/proof', {
-        state: { activityId, proofId }
-      });
+      navigate('/proof', { state: { activityId, proofId } });
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to submit activity';
       setError(msg);
@@ -79,85 +86,77 @@ const SubmitActivity = () => {
   };
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Submit Activity</h1>
-        <p className="dashboard-subtitle">Log your sustainability action and start verification.</p>
-      </div>
+      <div className="dashboard-page">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">Submit Activity</h1>
+          <p className="dashboard-subtitle">Log your sustainability action and start verification.</p>
+        </div>
 
-      <div className="card section-card form-card">
-        {error && (
-          <div className="alert alert-error">
-            {error}
-          </div>
-        )}
+        <div className="card section-card form-card">
+          {error && <div className="alert alert-error">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="form">
-          <div className="form-grid">
-            <div className="form-field">
-              <label>
-                Activity Type *
-                <select
-                  name="activityType"
-                  value={formData.activityType}
-                  onChange={handleChange}
-                  className="form-select"
-                  required
-                >
-                  <option value="">Select an activity type</option>
-                  {ACTIVITY_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          <form onSubmit={handleSubmit} className="form">
+            <div className="form-grid">
+              <div className="form-field">
+                <label>
+                  Activity Type *
+                  <select
+                      name="activityType"
+                      value={formData.activityType}
+                      onChange={handleChange}
+                      className="form-select"
+                      required
+                  >
+                    <option value="">Select an activity type</option>
+                    {ACTIVITY_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="form-field">
+                <label>
+                  Quantity {selectedType ? `(${selectedType.unit})` : ''} *
+                  <input
+                      type="number"
+                      name="quantity"
+                      value={formData.quantity}
+                      onChange={handleChange}
+                      min="0.1"
+                      step="0.1"
+                      placeholder={selectedType ? `Enter ${selectedType.unit}` : 'Enter quantity'}
+                      className="form-input"
+                      required
+                  />
+                </label>
+              </div>
             </div>
 
             <div className="form-field">
               <label>
-                Quantity {selectedType ? `(${selectedType.unit})` : ''} *
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  min="0.1"
-                  step="0.1"
-                  placeholder={selectedType ? `Enter ${selectedType.unit}` : 'Enter quantity'}
-                  className="form-input"
-                  required
+                Description (optional)
+                <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    placeholder="Add any additional details..."
+                    className="form-textarea"
                 />
               </label>
             </div>
-          </div>
 
-          <div className="form-field">
-            <label>
-              Description (optional)
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                placeholder="Add any additional details..."
-                className="form-textarea"
-              />
-            </label>
-          </div>
-
-          <div className="form-actions">
-            <button
-              type="submit"
-              disabled={loading}
-              className="primary-btn"
-            >
-              {loading ? 'Submitting...' : 'Submit & Continue to Proof'}
-            </button>
-          </div>
-        </form>
+            <div className="form-actions">
+              <button type="submit" disabled={loading} className="primary-btn">
+                {loading ? 'Submitting...' : 'Submit & Continue to Proof'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
   );
 };
 
