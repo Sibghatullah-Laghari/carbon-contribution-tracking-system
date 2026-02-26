@@ -46,3 +46,16 @@ replay_pid*
 # H2 local database files
 data/
 backend/cctrs-backend/data/
+
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local / temp databases
+data/
+*.db
+*.lock.db
+*.trace.db

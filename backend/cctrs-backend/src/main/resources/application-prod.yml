@@ -1,26 +1,28 @@
 # ===============================
-# PRODUCTION PROFILE — Supabase PostgreSQL
+# PRODUCTION PROFILE — Supabase PostgreSQL (Pooler)
 # Activated by: SPRING_PROFILES_ACTIVE=prod
-# Requires env vars: DB_URL, DB_USER, DB_PASS, SMTP_USERNAME, SMTP_PASSWORD
+# SMTP_USERNAME and SMTP_PASSWORD remain env-based; database values are hard-coded.
 # ===============================
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.postgresql.Driver}
+    url: jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+    username: postgres.bowjibnflublwammctiv
+    password: CCTRSAPP@gmail.com
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 10000
+      initialization-fail-timeout: 10000
 
-  # Run schema.sql on startup — compatible with both H2 (dev) and PostgreSQL (prod)
+  # SQL INIT — NEVER auto-run; schema is managed via migration scripts
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
+      mode: never
 
   jpa:
     hibernate:
       ddl-auto: none
-    database-platform: ${SPRING_JPA_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
 
   # Disable H2 console in production
