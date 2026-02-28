@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
 
-const RANK_STYLES = {
-  1: { bg: '#fef3c7', color: '#d97706', icon: '🥇' },
-  2: { bg: '#f3f4f6', color: '#6b7280', icon: '🥈' },
-  3: { bg: '#fef3c7', color: '#92400e', icon: '🥉' }
-};
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+const getPoints = (user) =>
+  user?.totalPoints || user?.carbonPoints || user?.points || 0;
 
 const Leaderboard = () => {
   const [users, setUsers] = useState([]);
@@ -31,108 +30,139 @@ const Leaderboard = () => {
     }
   };
 
-  const getRankStyle = (rank) => {
-    return RANK_STYLES[rank] || { bg: '#fff', color: '#374151', icon: null };
-  };
-
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Leaderboard</h1>
-        <p className="dashboard-subtitle">Celebrate the top contributors and stay inspired.</p>
+
+      {/* ── Page header ───────────────────────────────────────────── */}
+      <div className="lb-header">
+        <div>
+          <h1 className="dashboard-title">Leaderboard</h1>
+          <p className="dashboard-subtitle">Celebrate the top contributors and stay inspired.</p>
+        </div>
+        <div className="lb-header-actions">
+          <button className="btn btn-secondary" disabled title="Coming soon">
+            Analytics
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={fetchLeaderboard}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
-      {error && (
-        <div className="alert alert-error">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="card section-card">
+      {/* ── Main card ─────────────────────────────────────────────── */}
+      <div className="card lb-card">
         {loading ? (
-          <div className="page-state">Loading leaderboard...</div>
+          <div className="page-state">Loading leaderboard…</div>
         ) : users.length === 0 ? (
           <div className="page-state">No users on the leaderboard yet.</div>
         ) : (
-          <div>
-            {/* Top 3 Podium */}
+          <>
+            {/* Top-3 podium */}
             {users.length >= 3 && (
-              <div className="podium">
-                {/* 2nd Place */}
-                <div className="podium-card">
-                  <div className="podium-icon">🥈</div>
-                  <div className="podium-tile podium-silver">
-                    <div className="podium-name">{users[1]?.name || users[1]?.username || 'User'}</div>
-                    {users[1]?.email && <div style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>{users[1].email}</div>}
-                    <div className="podium-score">
-                      {(users[1]?.totalPoints || users[1]?.carbonPoints || users[1]?.points || 0).toLocaleString()} pts
+              <div className="lb-podium">
+                {/* 2nd place */}
+                <div className="lb-podium-item lb-podium-second">
+                  <span className="lb-podium-medal">🥈</span>
+                  <div className="lb-podium-tile">
+                    <div className="lb-podium-name">
+                      {users[1]?.name || users[1]?.username || 'User'}
+                    </div>
+                    {users[1]?.email && (
+                      <div className="lb-podium-email">{users[1].email}</div>
+                    )}
+                    <div className="lb-podium-pts">
+                      {getPoints(users[1]).toLocaleString()} pts
                     </div>
                   </div>
                 </div>
 
-                {/* 1st Place */}
-                <div className="podium-card podium-first">
-                  <div className="podium-icon">🥇</div>
-                  <div className="podium-tile podium-gold">
-                    <div className="podium-name podium-name-strong">
+                {/* 1st place */}
+                <div className="lb-podium-item lb-podium-first">
+                  <span className="lb-podium-medal lb-podium-medal-lg">🥇</span>
+                  <div className="lb-podium-tile lb-podium-tile-first">
+                    <div className="lb-podium-name lb-podium-name-first">
                       {users[0]?.name || users[0]?.username || 'User'}
                     </div>
-                    {users[0]?.email && <div style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{users[0].email}</div>}
-                    <div className="podium-score podium-score-strong">
-                      {(users[0]?.totalPoints || users[0]?.carbonPoints || users[0]?.points || 0).toLocaleString()} pts
+                    {users[0]?.email && (
+                      <div className="lb-podium-email">{users[0].email}</div>
+                    )}
+                    <div className="lb-podium-pts lb-podium-pts-first">
+                      {getPoints(users[0]).toLocaleString()} pts
                     </div>
                   </div>
                 </div>
 
-                {/* 3rd Place */}
-                <div className="podium-card">
-                  <div className="podium-icon">🥉</div>
-                  <div className="podium-tile podium-bronze">
-                    <div className="podium-name small">
+                {/* 3rd place */}
+                <div className="lb-podium-item lb-podium-third">
+                  <span className="lb-podium-medal">🥉</span>
+                  <div className="lb-podium-tile">
+                    <div className="lb-podium-name">
                       {users[2]?.name || users[2]?.username || 'User'}
                     </div>
-                    {users[2]?.email && <div style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>{users[2].email}</div>}
-                    <div className="podium-score small">
-                      {(users[2]?.totalPoints || users[2]?.carbonPoints || users[2]?.points || 0).toLocaleString()} pts
+                    {users[2]?.email && (
+                      <div className="lb-podium-email">{users[2].email}</div>
+                    )}
+                    <div className="lb-podium-pts">
+                      {getPoints(users[2]).toLocaleString()} pts
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Full Ranking Table */}
+            {/* Divider between podium and full table */}
+            {users.length >= 3 && <div className="lb-divider" />}
+
+            {/* Full rankings table */}
             <div className="table-wrap">
-              <table className="data-table">
+              <table className="data-table lb-table">
                 <thead>
                   <tr>
-                    <th className="cell-center">Rank</th>
-                    <th>User</th>
-                    <th className="cell-right">Points</th>
+                    <th className="lb-col-rank">Rank</th>
+                    <th className="lb-col-user">User</th>
+                    <th className="lb-col-pts">Points</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user, idx) => {
                     const rank = user.rank || idx + 1;
-                    const rankStyle = getRankStyle(rank);
+                    const isTop = rank <= 3;
                     return (
-                      <tr key={user.id || user.userId || idx}>
-                        <td className="cell-center">
-                          <span className="rank-pill" style={{ backgroundColor: rankStyle.bg, color: rankStyle.color }}>
-                            {rankStyle.icon || rank}
-                          </span>
+                      <tr
+                        key={user.id || user.userId || idx}
+                        className={`lb-row${isTop ? ' lb-row-top' : ''}`}
+                      >
+                        {/* Rank cell */}
+                        <td className="lb-col-rank">
+                          {isTop ? (
+                            <span className="lb-rank-medal">{MEDALS[rank - 1]}</span>
+                          ) : (
+                            <span className="lb-rank-badge">{rank}</span>
+                          )}
                         </td>
-                        <td>
-                          <div style={{ fontWeight: rank <= 3 ? 600 : 500, color: rankStyle.color }}>
+
+                        {/* User cell */}
+                        <td className="lb-col-user">
+                          <div className={`lb-user-name${isTop ? ' lb-user-name-top' : ''}`}>
                             {user.username || user.name || 'Anonymous'}
                           </div>
                           {user.email && (
-                            <div className="table-muted">
-                              {user.email}
-                            </div>
+                            <div className="lb-user-email">{user.email}</div>
                           )}
                         </td>
-                        <td className="cell-right table-strong" style={{ color: rank <= 3 ? rankStyle.color : '#2a9d8f' }}>
-                          {(user.totalPoints || user.carbonPoints || user.points || 0).toLocaleString()}
+
+                        {/* Points cell */}
+                        <td className="lb-col-pts">
+                          <span className={`lb-pts-val${isTop ? ' lb-pts-val-top' : ''}`}>
+                            {getPoints(user).toLocaleString()}
+                          </span>
+                          <span className="lb-pts-label"> pts</span>
                         </td>
                       </tr>
                     );
@@ -140,18 +170,8 @@ const Leaderboard = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </>
         )}
-      </div>
-
-      <div className="section-footer">
-        <button
-          onClick={fetchLeaderboard}
-          disabled={loading}
-          className="btn btn-primary"
-        >
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
       </div>
     </div>
   );
