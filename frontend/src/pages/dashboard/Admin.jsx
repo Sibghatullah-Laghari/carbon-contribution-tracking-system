@@ -33,7 +33,16 @@ const Admin = () => {
       setLoading(true); setError('');
       const res = await api.get('/admin/activities');
       const data = res?.data?.data || res?.data || [];
-      setActivities(Array.isArray(data) ? data : []);
+
+      const getActivityDate = (item) => {
+        const timestamp = item?.createdAt || item?.date;
+        return timestamp ? new Date(timestamp) : new Date('1970-01-01T00:00:00Z');
+      };
+
+      const sorted = Array.isArray(data)
+        ? [...data].sort((a, b) => getActivityDate(b) - getActivityDate(a))
+        : [];
+      setActivities(sorted);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Failed to load activities');
     } finally {
@@ -278,9 +287,14 @@ const Admin = () => {
         .metric-rejected .metric-value { color: #dc2626; }
       `}</style>
 
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">🛠️ Admin Panel</h1>
-          <p className="dashboard-subtitle">Review and approve activity submissions by category.</p>
+        <div className="dashboard-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h1 className="dashboard-title">🛠️ Admin Panel</h1>
+            <p className="dashboard-subtitle">Review and approve activity submissions by category.</p>
+          </div>
+          <button onClick={fetchActivities} disabled={loading} className="btn btn-primary" style={{ marginTop: '0.25rem', alignSelf: 'flex-start' }}>
+            {loading ? 'Refreshing...' : '🔄 Refresh'}
+          </button>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
