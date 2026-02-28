@@ -27,6 +27,11 @@ const Admin = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [deleteModal, setDeleteModal] = useState(null);
 
+  // Bulk-select state
+  const [adminSelected, setAdminSelected] = useState(new Set());
+  const [adminBulkModal, setAdminBulkModal] = useState(false);
+  const [adminBulkLoading, setAdminBulkLoading] = useState(false);
+
   const fetchActivities = useCallback(async () => {
     try {
       setLoading(true); setError('');
@@ -84,12 +89,41 @@ const Admin = () => {
     try {
       await api.delete(`/admin/activities/${deleteModal}`);
       setActivities(prev => prev.filter(a => a.id !== deleteModal));
+      setAdminSelected(prev => { const n = new Set(prev); n.delete(deleteModal); return n; });
       setDeleteModal(null);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Failed to delete activity');
       setDeleteModal(null);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const toggleAdminOne = (id) =>
+    setAdminSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const toggleAdminAll = () => {
+    if (adminSelected.size === filteredActivities.length && filteredActivities.length > 0) {
+      setAdminSelected(new Set());
+    } else {
+      setAdminSelected(new Set(filteredActivities.map(a => a.id)));
+    }
+  };
+
+  const handleAdminBulkDelete = async () => {
+    const ids = [...adminSelected];
+    if (!ids.length) return;
+    setAdminBulkLoading(true);
+    try {
+      await api.delete('/admin/activities/bulk', { data: { ids } });
+      setActivities(prev => prev.filter(a => !ids.includes(a.id)));
+      setAdminSelected(new Set());
+      setAdminBulkModal(false);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Bulk delete failed');
+      setAdminBulkModal(false);
+    } finally {
+      setAdminBulkLoading(false);
     }
   };
 
@@ -315,6 +349,28 @@ const Admin = () => {
         .arc-user-name { font-size: 0.82rem; color: #444; font-weight: 600; }
         .arc-user-handle { font-size: 0.78rem; color: #999; margin-left: 0.3rem; }
         .arc-user-email { font-size: 0.78rem; color: #888; margin-top: 1px; }
+
+        .admin-bulk-bar {
+          display: flex; align-items: center; gap: 0.75rem;
+          background: #fff3cd; border: 1.5px solid #fde68a;
+          border-radius: 12px; padding: 0.75rem 1.25rem;
+          margin-bottom: 1rem; flex-wrap: wrap;
+        }
+        .admin-bulk-count { font-weight: 800; font-size: 0.9rem; color: #92400e; flex: 1; }
+        .admin-select-row {
+          display: flex; align-items: center; gap: 0.75rem;
+          margin-bottom: 0.75rem; flex-wrap: wrap;
+        }
+        .admin-select-all-btn {
+          padding: 0.45rem 1rem; border-radius: 9px;
+          background: #f0f4f3; color: #555; border: 1.5px solid #e2eeec;
+          font-weight: 700; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+          transition: all 0.2s;
+        }
+        .admin-select-all-btn:hover { background: #e2eeec; color: #333; }
+        .arc-checkbox {
+          width: 17px; height: 17px; cursor: pointer; accent-color: #2a9d8f; flex-shrink: 0;
+        }
       `}</style>
 
         <div className="dashboard-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -391,6 +447,45 @@ const Admin = () => {
         </div>
 
         {/* ACTIVITIES */}
+        {/* SELECT ALL ROW + BULK BAR */}
+        {!loading && filteredActivities.length > 0 && (
+          <div className="admin-select-row">
+            <button
+              className="admin-select-all-btn"
+              onClick={toggleAdminAll}
+            >
+              {adminSelected.size === filteredActivities.length && filteredActivities.length > 0
+                ? `☐ Deselect All (${filteredActivities.length})`
+                : `☑ Select All Visible (${filteredActivities.length})`}
+            </button>
+            {adminSelected.size > 0 && (
+              <span style={{fontSize:'0.82rem',color:'#d97706',fontWeight:700}}>
+                {adminSelected.size} selected
+              </span>
+            )}
+          </div>
+        )}
+        {adminSelected.size > 0 && (
+          <div className="admin-bulk-bar">
+            <div className="admin-bulk-count">
+              🗂️ {adminSelected.size} activit{adminSelected.size===1?'y':'ies'} selected
+            </div>
+            <button
+              style={{padding:'0.5rem 1rem',borderRadius:'9px',background:'#f0f4f3',color:'#555',border:'1.5px solid #e2eeec',fontWeight:700,fontSize:'0.8rem',cursor:'pointer'}}
+              onClick={() => setAdminSelected(new Set())}
+            >
+              Clear
+            </button>
+            <button
+              className="btn-reject-new"
+              style={{padding:'0.5rem 1.2rem'}}
+              onClick={() => setAdminBulkModal(true)}
+              disabled={adminBulkLoading}
+            >
+              🗑️ Delete {adminSelected.size} Selected
+            </button>
+          </div>
+        )}
         {loading ? (
             <div className="page-state">Loading activities...</div>
         ) : filteredActivities.length === 0 ? (
@@ -438,6 +533,14 @@ const Admin = () => {
                           </div>
                         </div>
                         <div style={{display:"flex", alignItems:"center", gap:"0.5rem", flexWrap:"wrap", justifyContent:"flex-end"}}>
+                      {/* Add checkbox for bulk-select alongside the Activity ID badge */}
+                          <input
+                              type="checkbox"
+                              className="arc-checkbox"
+                              checked={adminSelected.has(activity.id)}
+                              onChange={() => toggleAdminOne(activity.id)}
+                              onClick={e => e.stopPropagation()}
+                          />
                           <span className="arc-id" style={{fontFamily:"monospace", background:"#f0f4f3", padding:"0.2rem 0.55rem", borderRadius:"6px", border:"1px solid #e2eeec", fontSize:"0.78rem", color:"#555", fontWeight:"700"}}>Activity #<span>{activity.id}</span></span>
                           <span
                               className="arc-status"
@@ -637,6 +740,38 @@ const Admin = () => {
                       disabled={actionLoading === deleteModal}
                   >
                     {actionLoading === deleteModal ? 'Deleting...' : '🗑️ Confirm Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+        )}
+
+        {/* BULK DELETE CONFIRMATION MODAL */}
+        {adminBulkModal && (
+            <div className="modal-overlay" onClick={() => !adminBulkLoading && setAdminBulkModal(false)}>
+              <div className="modal-card" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>🗑️ Bulk Delete Activities</h3>
+                  <button className="modal-close" disabled={adminBulkLoading} onClick={() => setAdminBulkModal(false)}>×</button>
+                </div>
+                <div style={{padding:"1.25rem"}}>
+                  <p style={{color:"#333", fontSize:"0.9rem", marginBottom:"0.5rem"}}>
+                    You are about to delete <strong>{adminSelected.size} activit{adminSelected.size===1?'y':'ies'}</strong>.
+                  </p>
+                  <p style={{color:"#888", fontSize:"0.82rem"}}>
+                    Activities will be soft-deleted and hidden from all default views.
+                    They remain in the database and are retrievable via Admin Search.
+                    User scores and badges are preserved.
+                  </p>
+                </div>
+                <div className="reject-modal-footer">
+                  <button className="btn-cancel" disabled={adminBulkLoading} onClick={() => setAdminBulkModal(false)}>Cancel</button>
+                  <button
+                      className="btn-reject-new"
+                      disabled={adminBulkLoading}
+                      onClick={handleAdminBulkDelete}
+                  >
+                    {adminBulkLoading ? 'Deleting...' : `🗑️ Delete ${adminSelected.size} Selected`}
                   </button>
                 </div>
               </div>

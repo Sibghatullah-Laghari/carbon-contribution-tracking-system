@@ -30,6 +30,10 @@ public class ActivityRowMapper implements RowMapper<Activity> {
         activity.setCreatedAt(
                 rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null);
 
+        // Soft-delete / archive flags — safe fallback if migration not yet applied
+        try { activity.setDeleted(rs.getBoolean("is_deleted")); } catch (SQLException ignored) {}
+        try { activity.setArchived(rs.getBoolean("is_archived")); } catch (SQLException ignored) {}
+
         return activity;
     }
 }

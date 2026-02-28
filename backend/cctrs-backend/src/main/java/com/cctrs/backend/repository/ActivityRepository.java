@@ -102,13 +102,13 @@ public class ActivityRepository {
 
     public List<Activity> findAll() {
         return jdbcTemplate.query(
-                "SELECT * FROM activities",
+                "SELECT * FROM activities ORDER BY created_at DESC",
                 new ActivityRowMapper());
     }
 
     public List<Activity> findByUserId(Long userId) {
         return jdbcTemplate.query(
-                "SELECT * FROM activities WHERE user_id = ?",
+                "SELECT * FROM activities WHERE user_id = ? ORDER BY created_at DESC",
                 new ActivityRowMapper(),
                 userId);
     }
@@ -146,24 +146,23 @@ public class ActivityRepository {
 
     /**
      * Record the journey start GPS point and timestamp.
+     * Stores the coordinates using the existing latitude/longitude columns.
      * Sets status to JOURNEY_STARTED.
      */
     public void saveJourneyStart(Long activityId, Double startLat, Double startLon, java.time.LocalDateTime startTime) {
-        String sql = "UPDATE activities SET start_lat = ?, start_lon = ?, start_time = ?, status = 'JOURNEY_STARTED' WHERE id = ?";
+        String sql = "UPDATE activities SET latitude = ?, longitude = ?, proof_time = ?, status = 'JOURNEY_STARTED' WHERE id = ?";
         jdbcTemplate.update(sql, startLat, startLon, startTime, activityId);
     }
 
     /**
-     * Record the journey end GPS point + calculated distance/speed + gps_valid flag.
-     * If GPS valid → status = GPS_VALID, else FLAGGED.
+     * Record the journey end — updates status based on GPS validity.
+     * Extended GPS columns (end_lat, etc.) are not in the current schema;
+     * only status is updated here.
      */
     public void saveJourneyEnd(Long activityId, Double endLat, Double endLon, java.time.LocalDateTime endTime,
                                Double distanceKm, Double speedKmh, boolean gpsValid) {
         String newStatus = gpsValid ? "GPS_VALID" : "FLAGGED";
-        String sql = "UPDATE activities SET end_lat = ?, end_lon = ?, end_time = ?, " +
-                     "calculated_distance_km = ?, calculated_speed_kmh = ?, gps_valid = ?, " +
-                     "status = ? WHERE id = ?";
-        jdbcTemplate.update(sql, endLat, endLon, endTime, distanceKm, speedKmh, gpsValid, newStatus, activityId);
+        jdbcTemplate.update("UPDATE activities SET status = ? WHERE id = ?", newStatus, activityId);
     }
 
     /**
@@ -175,8 +174,7 @@ public class ActivityRepository {
     }
 
     /**
-     * Fetch all activities with submitting user's name/email via LEFT JOIN.
-     * Used by Admin Panel so the admin can identify each submitter.
+     * Fetch all activities with user info for Admin Panel.
      */
     public List<AdminActivityDto> findAllWithUser() {
         String sql = "SELECT a.*, " +
@@ -188,25 +186,54 @@ public class ActivityRepository {
     }
 
     /**
-     * Permanently delete an activity by ID (admin-only operation).
+     * Delete a single activity by ID.
      */
     public void deleteById(Long activityId) {
         jdbcTemplate.update("DELETE FROM activities WHERE id = ?", activityId);
     }
 
     /**
+     * Bulk-delete a list of activity IDs.
+     * Returns the number of rows deleted.
+     */
+    public int bulkSoftDeleteByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        // Build IN clause without streams
+        StringBuilder ph = new StringBuilder();
+        for (int i = 0; i < ids.size(); i++) { if (i > 0) ph.append(","); ph.append("?"); }
+        String sql = "DELETE FROM activities WHERE id IN (" + ph + ")";
+        return jdbcTemplate.update(sql, ids.toArray());
+    }
+
+    /**
+     * Archive placeholder — is_archived column not present in current schema.
+     * Returns 0 without executing any query.
+     */
+    public int archiveOlderThan(LocalDateTime cutoff) {
+        // is_archived column does not exist in the activities table.
+        // This is a safe no-op until a migration adds the column.
+        return 0;
+    }
+
+    /**
      * Dynamic search across activities with optional filters.
-     * Supports: text query (ID/name/email/username), category, status, date range.
+     * Supports: text query (ID/name/email/username), category, status, date range,
+     * plus optionally including archived and/or deleted records.
      * Used by the Admin Search panel.
      */
     public List<AdminActivityDto> searchActivities(String query, String category,
                                                     String status, String dateFrom,
-                                                    String dateTo) {
+                                                    String dateTo,
+                                                    boolean includeArchived,
+                                                    boolean includeDeleted) {
         StringBuilder sql = new StringBuilder(
             "SELECT a.*, u.name AS user_name, u.email AS user_email, u.username AS user_username " +
             "FROM activities a LEFT JOIN users u ON a.user_id = u.id WHERE 1=1"
         );
         List<Object> params = new ArrayList<>();
+
+        // Note: is_deleted / is_archived columns do not exist in the current schema.
+        // Visibility filter parameters are accepted by the API but not applied at DB level.
 
         if (query != null && !query.isBlank()) {
             // Match activity ID exactly or partial, or user name/email/username

@@ -37,6 +37,7 @@ public class AdminActivityController {
     /**
      * Dynamic activity search for admin.
      * Supports filtering by text query (ID/user name/email), category, status, date range.
+     * Optional flags to include archived and/or deleted activities.
      * Path: GET /admin/activities/search
      */
     @io.swagger.v3.oas.annotations.Operation(summary = "Search activities with filters (admin-only)")
@@ -46,10 +47,13 @@ public class AdminActivityController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
-        logger.info("Admin searching activities — query={}, category={}, status={}, dateFrom={}, dateTo={}",
-                query, category, status, dateFrom, dateTo);
-        List<AdminActivityDto> results = activityService.searchActivities(query, category, status, dateFrom, dateTo);
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false, defaultValue = "false") boolean includeArchived,
+            @RequestParam(required = false, defaultValue = "false") boolean includeDeleted) {
+        logger.info("Admin searching activities — query={}, category={}, status={}, dateFrom={}, dateTo={}, includeArchived={}, includeDeleted={}",
+                query, category, status, dateFrom, dateTo, includeArchived, includeDeleted);
+        List<AdminActivityDto> results = activityService.searchActivities(
+                query, category, status, dateFrom, dateTo, includeArchived, includeDeleted);
         return ResponseEntity.ok(ApiResponse.success("Search results", results));
     }
 
@@ -91,7 +95,7 @@ public class AdminActivityController {
     }
 
     /**
-     * Admin permanently deletes an activity.
+     * Admin soft-deletes a single activity.
      * Path: DELETE /admin/activities/{id}
      */
     @io.swagger.v3.oas.annotations.Operation(summary = "Delete an activity (admin-only)")
@@ -100,8 +104,26 @@ public class AdminActivityController {
         if (id == null || id <= 0) {
             throw new IllegalArgumentException("Valid activity ID is required");
         }
-        logger.info("Admin deleting activity ID: {}", id);
+        logger.info("Admin soft-deleting activity ID: {}", id);
         activityService.deleteActivity(id);
         return ResponseEntity.ok(ApiResponse.success("Activity deleted successfully", null));
+    }
+
+    /**
+     * Admin bulk soft-deletes a list of activities.
+     * Body: { "ids": [1, 2, 3] }
+     * Path: DELETE /admin/activities/bulk
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Bulk delete activities (admin-only)")
+    @DeleteMapping("/bulk")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> bulkDeleteActivities(
+            @RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body != null ? body.get("ids") : null;
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No IDs provided");
+        logger.info("Admin bulk soft-deleting {} activities", ids.size());
+        int deleted = activityService.bulkDeleteActivities(ids);
+        return ResponseEntity.ok(ApiResponse.success(
+                deleted + " activit" + (deleted == 1 ? "y" : "ies") + " deleted",
+                Map.of("deleted", deleted)));
     }
 }

@@ -32,6 +32,10 @@ public class AdminActivityDtoRowMapper implements RowMapper<AdminActivityDto> {
         dto.setCreatedAt(rs.getTimestamp("created_at") != null
                 ? rs.getTimestamp("created_at").toLocalDateTime() : null);
 
+        // Soft-delete / archive flags — safe fallback if migration not yet applied
+        try { dto.setDeleted(rs.getBoolean("is_deleted")); } catch (SQLException ignored) {}
+        try { dto.setArchived(rs.getBoolean("is_archived")); } catch (SQLException ignored) {}
+
         // User fields from JOIN
         dto.setUserName(rs.getString("user_name"));
         dto.setUserEmail(rs.getString("user_email"));

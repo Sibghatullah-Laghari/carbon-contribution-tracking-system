@@ -23,6 +23,10 @@ public class AdminActivityDto {
     private LocalDateTime proofTime;
     private LocalDateTime createdAt;
 
+    // Soft-delete and archive flags
+    private boolean deleted = false;
+    private boolean archived = false;
+
     // User info (populated from JOIN)
     private String userName;
     private String userEmail;
@@ -76,6 +80,12 @@ public class AdminActivityDto {
 
     public String getUserName() { return userName; }
     public void setUserName(String userName) { this.userName = userName; }
+
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
+
+    public boolean isArchived() { return archived; }
+    public void setArchived(boolean archived) { this.archived = archived; }
 
     public String getUserEmail() { return userEmail; }
     public void setUserEmail(String userEmail) { this.userEmail = userEmail; }

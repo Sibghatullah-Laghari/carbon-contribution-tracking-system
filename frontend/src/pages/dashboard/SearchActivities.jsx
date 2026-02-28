@@ -77,6 +77,10 @@ const SearchActivities = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo]     = useState('');
 
+  // Archive / deleted visibility (admin-only controls)
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [includeDeleted, setIncludeDeleted]   = useState(false);
+
   // Results & UI state
   const [results, setResults]     = useState([]);
   const [loading, setLoading]     = useState(false);
@@ -90,7 +94,7 @@ const SearchActivities = () => {
   const debounceRef = useRef(null);
 
   // ── Perform search ──────────────────────────────────────────────────────
-  const performSearch = useCallback(async (q, cat, st, from, to) => {
+  const performSearch = useCallback(async (q, cat, st, from, to, incArchived, incDeleted) => {
     setLoading(true);
     setError('');
     try {
@@ -100,6 +104,8 @@ const SearchActivities = () => {
       if (st  && st  !== 'ALL') params.status   = st;
       if (from) params.dateFrom = from;
       if (to)   params.dateTo   = to;
+      if (incArchived) params.includeArchived = true;
+      if (incDeleted)  params.includeDeleted  = true;
 
       const res = await api.get('/admin/activities/search', { params });
       const data = res?.data?.data || res?.data || [];
@@ -118,7 +124,7 @@ const SearchActivities = () => {
   // ── Debounced auto-search when any filter changes ──────────────────────
   useEffect(() => {
     // Only auto-search if at least one filter is non-default
-    const hasFilter = query.trim() || category !== 'ALL' || status !== 'ALL' || dateFrom || dateTo;
+    const hasFilter = query.trim() || category !== 'ALL' || status !== 'ALL' || dateFrom || dateTo || includeArchived || includeDeleted;
     if (!hasFilter) {
       // Reset to blank state if user clears everything
       if (searched) { setResults([]); setSearched(false); setTotalCount(0); }
@@ -127,23 +133,24 @@ const SearchActivities = () => {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      performSearch(query, category, status, dateFrom, dateTo);
+      performSearch(query, category, status, dateFrom, dateTo, includeArchived, includeDeleted);
     }, 320);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, category, status, dateFrom, dateTo]);
+  }, [query, category, status, dateFrom, dateTo, includeArchived, includeDeleted]);
 
   // ── Manual search button ───────────────────────────────────────────────
   const handleSearchClick = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    performSearch(query, category, status, dateFrom, dateTo);
+    performSearch(query, category, status, dateFrom, dateTo, includeArchived, includeDeleted);
   };
 
   // ── Clear all filters ──────────────────────────────────────────────────
   const handleClear = () => {
     setQuery(''); setCategory('ALL'); setStatus('ALL');
     setDateFrom(''); setDateTo('');
+    setIncludeArchived(false); setIncludeDeleted(false);
     setResults([]); setSearched(false); setError(''); setTotalCount(0);
   };
 
@@ -151,7 +158,7 @@ const SearchActivities = () => {
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const pageResults = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const hasActiveFilter = query || category !== 'ALL' || status !== 'ALL' || dateFrom || dateTo;
+  const hasActiveFilter = query || category !== 'ALL' || status !== 'ALL' || dateFrom || dateTo || includeArchived || includeDeleted;
 
   // ── Relevance score helper (YouTube-style ranking already done server-side;
   //    this adds a client-side boost when ID matches exactly) ─────────────
@@ -464,6 +471,19 @@ const SearchActivities = () => {
               onChange={e => setDateTo(e.target.value)}
             />
           </div>
+
+          {/* Visibility toggles */}
+          <div className="sa-filter-group" style={{display:'flex',flexDirection:'column',gap:'0.5rem',justifyContent:'center'}}>
+            <label style={{marginBottom:0}}>Visibility</label>
+            <label style={{display:'flex',alignItems:'center',gap:'0.5rem',cursor:'pointer',fontWeight:600,fontSize:'0.82rem',color:'#555',textTransform:'none',letterSpacing:'normal'}}>
+              <input type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} style={{accentColor:'#d97706',width:'15px',height:'15px'}} />
+              📦 Include Auto-Archived
+            </label>
+            <label style={{display:'flex',alignItems:'center',gap:'0.5rem',cursor:'pointer',fontWeight:600,fontSize:'0.82rem',color:'#555',textTransform:'none',letterSpacing:'normal'}}>
+              <input type="checkbox" checked={includeDeleted} onChange={e => setIncludeDeleted(e.target.checked)} style={{accentColor:'#dc2626',width:'15px',height:'15px'}} />
+              🗑️ Include Deleted
+            </label>
+          </div>
         </div>
       </div>
 
@@ -565,6 +585,12 @@ const SearchActivities = () => {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <span className="arc-id">Activity #{activity.id}</span>
+                        {activity.deleted && (
+                          <span style={{background:'#fee2e2',color:'#dc2626',fontWeight:700,fontSize:'0.72rem',padding:'0.2rem 0.6rem',borderRadius:'20px',border:'1px solid #fca5a5'}}>🗑️ Deleted</span>
+                        )}
+                        {activity.archived && !activity.deleted && (
+                          <span style={{background:'#fef3c7',color:'#d97706',fontWeight:700,fontSize:'0.72rem',padding:'0.2rem 0.6rem',borderRadius:'20px',border:'1px solid #fde68a'}}>📦 Archived</span>
+                        )}
                         <span className="arc-status" style={{ background: statusStyle.bg, color: statusStyle.color }}>
                           {statusStyle.label}
                         </span>

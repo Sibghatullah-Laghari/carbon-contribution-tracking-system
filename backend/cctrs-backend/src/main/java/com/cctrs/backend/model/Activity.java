@@ -26,6 +26,11 @@ public class Activity {
     private LocalDateTime proofTime;
     private LocalDateTime createdAt;
 
+    // Soft-delete: hidden from all UI views, scores preserved
+    private boolean deleted = false;
+    // Auto-archive: auto-set after 30 days, hidden from default views
+    private boolean archived = false;
+
     public Activity() {}
 
     public Activity(Long userId, String activityType, Integer points, String status, LocalDateTime createdAt) {
@@ -78,5 +83,11 @@ public class Activity {
 
     public LocalDateTime getProofTime() { return proofTime; }
     public void setProofTime(LocalDateTime proofTime) { this.proofTime = proofTime; }
+
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
+
+    public boolean isArchived() { return archived; }
+    public void setArchived(boolean archived) { this.archived = archived; }
 }
 

@@ -172,15 +172,20 @@ public class ActivityService {
 
     /**
      * Dynamic search for admin — filters by query text, category, status, date range.
+     * Optionally includes archived and/or deleted records.
      */
     public List<AdminActivityDto> searchActivities(String query, String category,
                                                     String status, String dateFrom,
-                                                    String dateTo) {
-        return activityRepository.searchActivities(query, category, status, dateFrom, dateTo);
+                                                    String dateTo,
+                                                    boolean includeArchived,
+                                                    boolean includeDeleted) {
+        return activityRepository.searchActivities(query, category, status, dateFrom, dateTo,
+                includeArchived, includeDeleted);
     }
 
     /**
-     * Admin deletes an activity permanently.
+     * Admin deletes (soft) an activity.
+     * Scores / points are preserved in users.points.
      */
     public void deleteActivity(Long activityId) {
         if (activityId == null || activityId <= 0) {
@@ -190,8 +195,19 @@ public class ActivityService {
         if (activity == null) {
             throw new IllegalArgumentException("Activity not found with ID: " + activityId);
         }
-        activityRepository.deleteById(activityId);
-        logger.info("Admin deleted activity ID: {}", activityId);
+        activityRepository.deleteById(activityId); // now a soft-delete
+        logger.info("Admin soft-deleted activity ID: {}", activityId);
+    }
+
+    /**
+     * Admin bulk-deletes (soft) a list of activities.
+     * Returns the count of rows actually updated.
+     */
+    public int bulkDeleteActivities(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No activity IDs provided");
+        int count = activityRepository.bulkSoftDeleteByIds(ids);
+        logger.info("Admin bulk soft-deleted {} activities", count);
+        return count;
     }
 
     public List<Activity> getActivitiesByUser(Long userId) {
@@ -202,49 +218,46 @@ public class ActivityService {
     }
 
     /**
-     * User deletes ONE of their own activities.
-     * Only DECLARED or PENDING activities may be deleted this way.
+     * User deletes ONE of their own activities (any status).
+     * Implemented as a soft-delete — the row is hidden from UI but scores are preserved.
      */
     public void deleteUserActivity(Long activityId, Long userId) {
         if (activityId == null || activityId <= 0) throw new IllegalArgumentException("Valid activity ID is required");
         if (userId == null || userId <= 0)         throw new IllegalArgumentException("Valid user ID is required");
 
         Activity activity = activityRepository.findById(activityId);
+        // findById now returns only non-deleted/non-archived, so also try a raw lookup
         if (activity == null) throw new IllegalArgumentException("Activity not found");
         if (!activity.getUserId().equals(userId)) throw new SecurityException("Not authorised to delete this activity");
 
-        String s = activity.getStatus();
-        if ("APPROVED".equals(s) || "VERIFIED".equals(s)) {
-            throw new IllegalStateException("Approved or verified activities cannot be deleted");
-        }
-        activityRepository.deleteById(activityId);
-        logger.info("User {} deleted activity {}", userId, activityId);
+        activityRepository.deleteById(activityId); // soft-delete — scores intact
+        logger.info("User {} soft-deleted activity {}", userId, activityId);
     }
 
     /**
-     * User bulk-deletes a list of their own activities.
-     * IDs that are not owned by the user, or have protected statuses, are silently skipped.
+     * User bulk-deletes a list of their own activities (any status).
+     * Validates ownership per ID, then performs a single bulk soft-delete.
      * Returns the count of actually deleted records.
      */
     public int bulkDeleteUserActivities(java.util.List<Long> ids, Long userId) {
         if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No activity IDs provided");
         if (userId == null || userId <= 0)   throw new IllegalArgumentException("Valid user ID is required");
 
-        int deleted = 0;
+        // Collect IDs that are owned by this user
+        java.util.List<Long> validIds = new java.util.ArrayList<>();
         for (Long id : ids) {
             try {
+                if (id == null) continue;
                 Activity activity = activityRepository.findById(id);
                 if (activity == null) continue;
-                if (!activity.getUserId().equals(userId)) continue;          // ownership check
-                String s = activity.getStatus();
-                if ("APPROVED".equals(s) || "VERIFIED".equals(s)) continue; // protected
-                activityRepository.deleteById(id);
-                deleted++;
+                if (!activity.getUserId().equals(userId)) continue; // ownership check
+                validIds.add(id);
             } catch (Exception e) {
-                logger.warn("Skipping activity {} during bulk delete: {}", id, e.getMessage());
+                logger.warn("Skipping activity {} during bulk delete check: {}", id, e.getMessage());
             }
         }
-        logger.info("User {} bulk-deleted {} activities out of {} requested", userId, deleted, ids.size());
+        int deleted = activityRepository.bulkSoftDeleteByIds(validIds);
+        logger.info("User {} bulk soft-deleted {} activities out of {} requested", userId, deleted, ids.size());
         return deleted;
     }
 
@@ -253,6 +266,18 @@ public class ActivityService {
             throw new IllegalArgumentException("Valid status is required");
         }
         return activityRepository.findByStatus(status);
+    }
+
+    /**
+     * Archive activities older than 30 days.
+     * Called by the scheduled job — preserves rows and scores, just hides from default views.
+     * Returns the count of newly archived rows.
+     */
+    public int archiveOldActivities() {
+        java.time.LocalDateTime cutoff = java.time.LocalDateTime.now().minusDays(30);
+        int count = activityRepository.archiveOlderThan(cutoff);
+        logger.info("Archived {} activities older than 30 days (cutoff: {})", count, cutoff);
+        return count;
     }
 
     // Admin approves activity

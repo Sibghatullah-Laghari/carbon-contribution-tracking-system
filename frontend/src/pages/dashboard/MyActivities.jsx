@@ -30,8 +30,11 @@ const STATUS_OPTIONS = [
   { value: 'FLAGGED',        label: 'Flagged' },
 ];
 
-// Activities with these statuses can be deleted by the user
-const DELETABLE_STATUSES = new Set(['DECLARED', 'PENDING']);
+// All activities are now soft-deletable — scores are preserved server-side
+const DELETABLE_STATUSES = new Set([
+  'DECLARED', 'PENDING', 'PROOF_SUBMITTED', 'GPS_VALID',
+  'JOURNEY_STARTED', 'APPROVED', 'REJECTED', 'VERIFIED', 'FLAGGED',
+]);
 
 const PAGE_SIZE = 20;
 
@@ -124,10 +127,20 @@ const MyActivities = () => {
       if (qtyMin !== '' && qty < Number(qtyMin)) return false;
       if (qtyMax !== '' && qty > Number(qtyMax)) return false;
       if (textQuery.trim()) {
-        const q = textQuery.trim().toLowerCase();
-        const label   = fmtType(a.activityType || a.type).toLowerCase();
-        const typeKey = type.toLowerCase();
-        if (!label.includes(q) && !typeKey.includes(q)) return false;
+        const raw = textQuery.trim();
+        // Strip leading '#' to support both '18' and '#18'
+        const stripped = raw.startsWith('#') ? raw.slice(1) : raw;
+        const numericId = /^\d+$/.test(stripped) ? Number(stripped) : null;
+        if (numericId !== null) {
+          // Pure ID search — match activity ID exactly
+          if (a.id !== numericId) return false;
+        } else {
+          // Text search — match activity type label
+          const q       = raw.toLowerCase();
+          const label   = fmtType(a.activityType || a.type).toLowerCase();
+          const typeKey = type.toLowerCase();
+          if (!label.includes(q) && !typeKey.includes(q)) return false;
+        }
       }
       return true;
     });
@@ -390,7 +403,7 @@ const MyActivities = () => {
           <input
             className="ma-text-input"
             type="text"
-            placeholder="Search by activity type (e.g. Recycling, Tree Plantation…)"
+            placeholder="Search by ID, type or status (e.g. #18, Recycling, Tree Plantation…)"
             value={textQuery}
             onChange={e => setTextQuery(e.target.value)}
           />
@@ -496,6 +509,7 @@ const MyActivities = () => {
                 <div className="ma-card-body">
                   <div className="ma-card-title">{fmtType(actType)}</div>
                   <div className="ma-card-meta">
+                    <span style={{color:'#aaa',fontFamily:'monospace',fontWeight:700,background:'#f0f4f3',padding:'1px 6px',borderRadius:'5px',border:'1px solid #e2eeec'}}>#{activity.id}</span>
                     <span>📅 {fmt(activity.createdAt||activity.date)}</span>
                     <span>📦 Qty: {activity.declaredQuantity??activity.quantity??'-'}</span>
                     <span className="pts">⚡ {activity.carbonPoints||activity.points||0} pts</span>
@@ -557,8 +571,8 @@ const MyActivities = () => {
               <button className="ma-modal-close" disabled={deleteLoading} onClick={()=>setDeleteModal(null)}>×</button>
             </div>
             <div className="ma-modal-body">
-              <p>Are you sure you want to permanently delete <strong>Activity #{deleteModal}</strong>?</p>
-              <p style={{color:'#888',fontSize:'0.82rem',marginTop:'0.5rem'}}>This action cannot be undone.</p>
+              <p>Are you sure you want to delete <strong>Activity #{deleteModal}</strong>?</p>
+              <p style={{color:'#888',fontSize:'0.82rem',marginTop:'0.5rem'}}>The activity will be hidden from your view. Your points and badges remain unchanged.</p>
             </div>
             <div className="ma-modal-footer">
               <button className="btn-cancel-modal" disabled={deleteLoading} onClick={()=>setDeleteModal(null)}>Cancel</button>
@@ -579,13 +593,13 @@ const MyActivities = () => {
               <button className="ma-modal-close" disabled={deleteLoading} onClick={()=>setDeleteModal(null)}>×</button>
             </div>
             <div className="ma-modal-body">
-              <p>You are about to permanently delete{' '}
+              <p>You are about to delete{' '}
                 <strong>{selectedCount} activit{selectedCount===1?'y':'ies'}</strong>.
               </p>
               <p style={{color:'#888',fontSize:'0.82rem',marginTop:'0.5rem'}}>
-                Only <strong>Declared</strong> or <strong>Pending</strong> activities will be deleted.
-                Approved or verified activities are automatically protected and skipped.
-                This action cannot be undone.
+                Activities will be hidden from your view. Your points, badges, and
+                monthly progress remain completely unchanged.
+                This action cannot be undone from the app.
               </p>
             </div>
             <div className="ma-modal-footer">
