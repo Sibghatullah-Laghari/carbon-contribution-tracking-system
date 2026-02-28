@@ -37,7 +37,7 @@ ALTER TABLE users ADD COLUMN role VARCHAR(50);
 ALTER TABLE activities ADD COLUMN activity_type VARCHAR(50);
 ALTER TABLE activities ADD COLUMN description TEXT;
 ALTER TABLE activities ADD COLUMN declared_quantity INT DEFAULT 0;
-ALTER TABLE activities ADD COLUMN proof_image VARCHAR(255);
+ALTER TABLE activities ADD COLUMN proof_image TEXT;
 ALTER TABLE activities ADD COLUMN latitude DOUBLE;
 ALTER TABLE activities ADD COLUMN longitude DOUBLE;
 ALTER TABLE activities ADD COLUMN proof_time TIMESTAMP;

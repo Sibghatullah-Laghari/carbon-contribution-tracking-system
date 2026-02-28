@@ -28,7 +28,7 @@ public class ActivityRepository {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "ID" });
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "id" });
             ps.setLong(1, activity.getUserId());
             ps.setString(2, activity.getActivityType());
             ps.setInt(3, activity.getPoints());
@@ -64,7 +64,7 @@ public class ActivityRepository {
     public int getMonthlyPoints(Long userId, int month, int year) {
         String sql = "SELECT COALESCE(SUM(points),0) FROM activities " +
                 "WHERE user_id=? AND status='APPROVED' " +
-                "AND MONTH(created_at)=? AND YEAR(created_at)=?";
+                "AND EXTRACT(MONTH FROM created_at)=? AND EXTRACT(YEAR FROM created_at)=?";
         Integer result = jdbcTemplate.queryForObject(sql, Integer.class, userId, month, year);
         return result != null ? result : 0;
     }
@@ -72,16 +72,16 @@ public class ActivityRepository {
     public int getMonthlyActivityCount(Long userId, int month, int year) {
         String sql = "SELECT COUNT(*) FROM activities " +
                 "WHERE user_id=? AND status='APPROVED' " +
-                "AND MONTH(created_at)=? AND YEAR(created_at)=?";
+                "AND EXTRACT(MONTH FROM created_at)=? AND EXTRACT(YEAR FROM created_at)=?";
         Integer result = jdbcTemplate.queryForObject(sql, Integer.class, userId, month, year);
         return result != null ? result : 0;
     }
 
     public List<Integer> getMonthWisePoints(Long userId, int year) {
-        String sql = "SELECT MONTH(created_at) as m, COALESCE(SUM(points),0) as p " +
+        String sql = "SELECT EXTRACT(MONTH FROM created_at) as m, COALESCE(SUM(points),0) as p " +
                 "FROM activities WHERE user_id=? AND status='APPROVED' " +
-                "AND YEAR(created_at)=? " +
-                "GROUP BY MONTH(created_at)";
+                "AND EXTRACT(YEAR FROM created_at)=? " +
+                "GROUP BY EXTRACT(MONTH FROM created_at)";
 
         Map<Integer, Integer> map = new HashMap<>();
 

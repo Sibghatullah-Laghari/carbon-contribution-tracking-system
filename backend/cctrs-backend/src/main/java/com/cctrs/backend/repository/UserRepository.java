@@ -41,7 +41,7 @@ public class UserRepository {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "ID" });
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "id" });
             ps.setString(1, user.getName());
             ps.setString(2, user.getEmail());
             ps.setString(3, user.getUsername());
@@ -112,7 +112,7 @@ public class UserRepository {
 
     public List<User> findTopUsersByPoints(int limit) {
         return jdbcTemplate.query(
-                "SELECT * FROM users ORDER BY points DESC LIMIT ?",
+                "SELECT * FROM users WHERE role != 'ADMIN' ORDER BY points DESC LIMIT ?",
                 new UserRowMapper(),
                 limit);
     }

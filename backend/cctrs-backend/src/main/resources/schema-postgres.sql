@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS activities (
     points INT NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     rejection_reason TEXT,
-    proof_image VARCHAR(500),
+    proof_image TEXT,
     latitude DECIMAL(10, 8),
     longitude DECIMAL(11, 8),
     proof_time TIMESTAMP,

@@ -30,14 +30,14 @@ public class MonthlySummaryRepository {
             throw new IllegalArgumentException("Valid yearMonth is required");
         }
 
-        // H2-compatible SQL query for monthly summaries
+        // PostgreSQL-compatible SQL query for monthly summaries
         // Format: YYYY-MM
         String sql = "SELECT COALESCE(SUM(a.points), 0) as total_points " +
                     "FROM activities a " +
                     "WHERE a.user_id = ? " +
                     "AND a.status = 'APPROVED' " +
-                    "AND YEAR(a.created_at) = YEAR(CAST(? || '-01' AS DATE)) " +
-                    "AND MONTH(a.created_at) = MONTH(CAST(? || '-01' AS DATE))";
+                    "AND EXTRACT(YEAR FROM a.created_at) = EXTRACT(YEAR FROM CAST(? || '-01' AS DATE)) " +
+                    "AND EXTRACT(MONTH FROM a.created_at) = EXTRACT(MONTH FROM CAST(? || '-01' AS DATE))";
 
         try {
             Integer result = jdbcTemplate.queryForObject(sql, Integer.class, userId, yearMonth, yearMonth);
