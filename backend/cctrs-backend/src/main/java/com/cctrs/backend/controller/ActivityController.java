@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Base64;
 
 @RestController
@@ -163,6 +164,50 @@ public class ActivityController {
 
         List<Activity> activities = activityService.getActivitiesByStatus(status);
         return ResponseEntity.ok(ApiResponse.success("Activities retrieved by status", activities));
+    }
+
+    /**
+     * User deletes a single one of their own DECLARED / PENDING activities.
+     * DELETE /api/activities/{id}
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Delete a user's own activity (DECLARED or PENDING only)")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUserActivity(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+        if (user == null) throw new IllegalArgumentException("User not found");
+
+        activityService.deleteUserActivity(id, user.getId());
+        return ResponseEntity.ok(ApiResponse.success("Activity deleted successfully", null));
+    }
+
+    /**
+     * User bulk-deletes multiple of their own DECLARED / PENDING activities.
+     * Approved / Verified IDs are silently skipped — ownership is enforced.
+     * DELETE /api/activities/bulk
+     * Body: { "ids": [1, 2, 3] }
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Bulk delete user's own eligible activities")
+    @DeleteMapping("/bulk")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> bulkDeleteUserActivities(
+            @RequestBody Map<String, List<Long>> body) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+        if (user == null) throw new IllegalArgumentException("User not found");
+
+        List<Long> ids = body != null ? body.get("ids") : null;
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No IDs provided");
+
+        int deleted = activityService.bulkDeleteUserActivities(ids, user.getId());
+        return ResponseEntity.ok(ApiResponse.success(
+                deleted + " activit" + (deleted == 1 ? "y" : "ies") + " deleted",
+                Map.of("deleted", deleted)));
     }
 
     /* Admin endpoints have been moved to AdminActivityController for security */

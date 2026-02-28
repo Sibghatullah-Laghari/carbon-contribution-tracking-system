@@ -201,6 +201,53 @@ public class ActivityService {
         return activityRepository.findByUserId(userId);
     }
 
+    /**
+     * User deletes ONE of their own activities.
+     * Only DECLARED or PENDING activities may be deleted this way.
+     */
+    public void deleteUserActivity(Long activityId, Long userId) {
+        if (activityId == null || activityId <= 0) throw new IllegalArgumentException("Valid activity ID is required");
+        if (userId == null || userId <= 0)         throw new IllegalArgumentException("Valid user ID is required");
+
+        Activity activity = activityRepository.findById(activityId);
+        if (activity == null) throw new IllegalArgumentException("Activity not found");
+        if (!activity.getUserId().equals(userId)) throw new SecurityException("Not authorised to delete this activity");
+
+        String s = activity.getStatus();
+        if ("APPROVED".equals(s) || "VERIFIED".equals(s)) {
+            throw new IllegalStateException("Approved or verified activities cannot be deleted");
+        }
+        activityRepository.deleteById(activityId);
+        logger.info("User {} deleted activity {}", userId, activityId);
+    }
+
+    /**
+     * User bulk-deletes a list of their own activities.
+     * IDs that are not owned by the user, or have protected statuses, are silently skipped.
+     * Returns the count of actually deleted records.
+     */
+    public int bulkDeleteUserActivities(java.util.List<Long> ids, Long userId) {
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No activity IDs provided");
+        if (userId == null || userId <= 0)   throw new IllegalArgumentException("Valid user ID is required");
+
+        int deleted = 0;
+        for (Long id : ids) {
+            try {
+                Activity activity = activityRepository.findById(id);
+                if (activity == null) continue;
+                if (!activity.getUserId().equals(userId)) continue;          // ownership check
+                String s = activity.getStatus();
+                if ("APPROVED".equals(s) || "VERIFIED".equals(s)) continue; // protected
+                activityRepository.deleteById(id);
+                deleted++;
+            } catch (Exception e) {
+                logger.warn("Skipping activity {} during bulk delete: {}", id, e.getMessage());
+            }
+        }
+        logger.info("User {} bulk-deleted {} activities out of {} requested", userId, deleted, ids.size());
+        return deleted;
+    }
+
     public List<Activity> getActivitiesByStatus(String status) {
         if (status == null || status.trim().isEmpty()) {
             throw new IllegalArgumentException("Valid status is required");
