@@ -4,6 +4,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
+// Shared analytics utilities — also used by MonthlyProgress (user-scoped analytics)
+import {
+  CHART_COLORS, PIE_COLORS, STATUS_PIE_COLORS,
+  MONTHS, MONTH_NAMES, getCatKey, getActivityDate,
+} from '../../components/analytics/chartUtils';
+import CustomTooltip from '../../components/analytics/CustomTooltip';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -19,46 +25,6 @@ const CATEGORIES = [
   { key: 'PUBLIC_TRANSPORT', label: 'Public Transport', icon: '🚌', unit: 'km', color: '#2a9d8f' },
   { key: 'RECYCLING', label: 'Recycling', icon: '♻️', unit: 'kg', color: '#7c3aed' },
 ];
-
-const CHART_COLORS = {
-  tree: '#16a34a', transport: '#2a9d8f', recycling: '#7c3aed',
-  approved: '#059669', rejected: '#dc2626', pending: '#d97706',
-};
-const PIE_COLORS = ['#16a34a', '#2a9d8f', '#7c3aed'];
-const STATUS_PIE_COLORS = ['#059669', '#dc2626', '#d97706'];
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-// ─── HELPERS ─────────────────────────────────────────────────────
-const getCatKey = (activity) => {
-  const type = (activity.activityType || activity.type || '').toUpperCase().replace(/ /g, '_');
-  if (type.includes('TREE')) return 'tree';
-  if (type.includes('TRANSPORT')) return 'transport';
-  if (type.includes('RECYCLING')) return 'recycling';
-  return 'other';
-};
-
-const getActivityDate = (activity) => {
-  const ts = activity.createdAt || activity.date;
-  return ts ? new Date(ts) : null;
-};
-
-// ─── CUSTOM TOOLTIP ──────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
-  return (
-      <div style={{background:'#fff', border:'1.5px solid #e2eeec', borderRadius:'10px', padding:'0.75rem 1rem', boxShadow:'0 4px 16px rgba(0,0,0,0.1)'}}>
-        <div style={{fontWeight:800, color:'#1a1a1a', marginBottom:'0.4rem', fontSize:'0.85rem'}}>{label}</div>
-        {payload.map((p, i) => (
-            <div key={i} style={{display:'flex', alignItems:'center', gap:'0.4rem', fontSize:'0.82rem', color:'#555'}}>
-              <span style={{width:10, height:10, borderRadius:'50%', background:p.color, display:'inline-block'}}></span>
-              {p.name}: <strong style={{color:p.color}}>{p.value}</strong>
-            </div>
-        ))}
-      </div>
-  );
-};
 
 // ─── ANALYTICS ENGINE ────────────────────────────────────────────
 const AnalyticsEngine = ({ activities }) => {

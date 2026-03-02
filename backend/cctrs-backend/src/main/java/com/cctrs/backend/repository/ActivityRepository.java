@@ -121,9 +121,11 @@ public class ActivityRepository {
                                              String activityType,
                                              String status) {
 
-        // Choose the period-label SQL expression
+        // Choose the period-label SQL expression (YEAR added for user analytics)
         String periodExpr;
-        if ("DAY".equalsIgnoreCase(granularity)) {
+        if ("YEAR".equalsIgnoreCase(granularity)) {
+            periodExpr = "TO_CHAR(created_at, 'YYYY')";
+        } else if ("DAY".equalsIgnoreCase(granularity)) {
             periodExpr = "TO_CHAR(created_at, 'YYYY-MM-DD')";
         } else if ("HOUR".equalsIgnoreCase(granularity)) {
             periodExpr = "TO_CHAR(created_at, 'HH24')";
