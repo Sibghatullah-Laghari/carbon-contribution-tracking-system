@@ -25,6 +25,12 @@ public class ActivityRowMapper implements RowMapper<Activity> {
         activity.setProofImage(rs.getString("proof_image"));
         activity.setLatitude(rs.getObject("latitude") != null ? rs.getDouble("latitude") : null);
         activity.setLongitude(rs.getObject("longitude") != null ? rs.getDouble("longitude") : null);
+        try { activity.setIsFlagged(rs.getBoolean("is_flagged")); } catch (SQLException ignored) {}
+        try { activity.setFlagReason(rs.getString("flag_reason")); } catch (SQLException ignored) {}
+        try {
+            activity.setFlagDistanceMeters(rs.getObject("flag_distance_meters") != null
+                ? rs.getDouble("flag_distance_meters") : null);
+        } catch (SQLException ignored) {}
         activity.setProofTime(
                 rs.getTimestamp("proof_time") != null ? rs.getTimestamp("proof_time").toLocalDateTime() : null);
         activity.setCreatedAt(

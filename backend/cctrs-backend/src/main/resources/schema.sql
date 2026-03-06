@@ -27,8 +27,11 @@ CREATE TABLE IF NOT EXISTS activities (
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     rejection_reason TEXT,
     proof_image TEXT,
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    is_flagged BOOLEAN DEFAULT FALSE,
+    flag_reason VARCHAR(255),
+    flag_distance_meters DOUBLE PRECISION,
     proof_time TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -36,6 +39,7 @@ CREATE TABLE IF NOT EXISTS activities (
 
 CREATE INDEX IF NOT EXISTS idx_user_id ON activities(user_id);
 CREATE INDEX IF NOT EXISTS idx_status ON activities(status);
+CREATE INDEX IF NOT EXISTS idx_tree_location ON activities(user_id, latitude, longitude);
 
 CREATE TABLE IF NOT EXISTS proof_sessions (
     id VARCHAR(50) PRIMARY KEY,

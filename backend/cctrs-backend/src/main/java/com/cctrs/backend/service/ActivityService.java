@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -52,6 +53,8 @@ public class ActivityService {
 
         // Default verification flag
         String flag = "OK";
+        boolean isFlagged = false;
+        String flagReason = null;
 
         // RULE 1: Daily Limit Check
         // Update daily limits and check bounds
@@ -72,17 +75,18 @@ public class ActivityService {
                 java.time.LocalDate.now());
         if (limit != null && limit.getActivityCount() > 10) {
             flag = "FLAGGED";
+            isFlagged = true;
         }
 
-        if (ActivityType.TREE_PLANTATION.getDisplayName().equalsIgnoreCase(activity.getActivityType()) ||
-                "Tree Plantation".equalsIgnoreCase(activity.getActivityType())) {
+        if (isTreePlantation(activity.getActivityType())) {
             dailyLimitRepository.incrementTreeCount(activity.getUserId(), java.time.LocalDate.now(), quantity);
 
-            // Check Tree Limit (Rule: Max 5 trees per day)
-            // Re-fetch limit to get updated tree count
-            limit = dailyLimitRepository.findByUserIdAndDate(activity.getUserId(), java.time.LocalDate.now());
-            if (limit != null && limit.getTreesDeclared() > 5) {
+            // Required anti-abuse rule: flag if today's total is already at limit.
+            int todayTreeTotal = activityRepository.getTodayTreePlantationTotal(activity.getUserId(), LocalDate.now());
+            if (todayTreeTotal >= 10) {
                 flag = "FLAGGED";
+                isFlagged = true;
+                flagReason = appendReason(flagReason, "Daily plantation limit exceeded (10 trees)");
             }
         }
 
@@ -102,6 +106,8 @@ public class ActivityService {
 
         activity.setStatus("DECLARED");
         activity.setVerificationFlag(flag);
+        activity.setIsFlagged(isFlagged);
+        activity.setFlagReason(flagReason);
 
         // Set timestamp if not provided
         if (activity.getCreatedAt() == null) {
@@ -121,7 +127,7 @@ public class ActivityService {
     }
 
     // Submit Proof (Stage 2)
-    public void submitProof(Long activityId, Long userId, String proofImage, Double lat, Double lon,
+    public Activity submitProof(Long activityId, Long userId, String proofImage, Double lat, Double lon,
             LocalDateTime proofTime) {
         Activity activity = activityRepository.findById(activityId);
         if (activity == null) {
@@ -136,26 +142,63 @@ public class ActivityService {
             throw new IllegalArgumentException("Activity is not in DECLARED state");
         }
 
-        // Update proof details
-        // Using repository method or JDBC template directly? ActivityRepository needs
-        // an update method or we extend it here.
-        // Better to add method in Repository or use setters and save? Repository.save
-        // handles INSERT usually.
-        // ActivityRepository has updateStatus but not full update.
-        // I will add updateProofDetails to ActivityRepository in next step or use a
-        // custom query here via the repo?
-        // Wait, I can't modify Repo class here. I need to rely on what's available or
-        // add to Repo.
-        // I'll assume I can add `updateProof` to `ActivityRepository`.
-        // For now, let's throw if not implemented, or better, implement `updateProof`
-        // implementation in Repo first.
-        // Or I can use setters and a `save` if `save` handles updates (check `save`
-        // implementation).
-        // `save` implementation had `INSERT` SQL. It does NOT handle update.
-        // So I must add an update method to ActivityRepository.
+        boolean isFlagged = Boolean.TRUE.equals(activity.getIsFlagged()) ||
+                "FLAGGED".equalsIgnoreCase(activity.getVerificationFlag());
+        String flagReason = activity.getFlagReason();
+        Double duplicateDistanceMeters = null;
 
-        // I'll call a method I will create in ActivityRepository
-        activityRepository.submitProof(activityId, proofImage, lat, lon, proofTime);
+        if (isTreePlantation(activity.getActivityType())) {
+            duplicateDistanceMeters = activityRepository.findNearestTreeDistanceMeters(userId, lat, lon);
+            if (duplicateDistanceMeters != null && duplicateDistanceMeters <= 10.0d) {
+                isFlagged = true;
+                flagReason = appendReason(flagReason, "Plantation within 10 meters of previous tree");
+            }
+        }
+
+        String verificationFlag = isFlagged ? "FLAGGED" : "OK";
+
+        activityRepository.submitProof(activityId, proofImage, lat, lon, proofTime, isFlagged, flagReason,
+                duplicateDistanceMeters);
+        activityRepository.updateVerificationFlag(activityId, verificationFlag);
+
+        activity.setProofImage(proofImage);
+        activity.setLatitude(lat);
+        activity.setLongitude(lon);
+        activity.setProofTime(proofTime);
+        activity.setStatus("PROOF_SUBMITTED");
+        activity.setVerificationFlag(verificationFlag);
+        activity.setIsFlagged(isFlagged);
+        activity.setFlagReason(flagReason);
+        activity.setFlagDistanceMeters(duplicateDistanceMeters);
+        return activity;
+    }
+
+    public void ignoreActivityFlag(Long activityId) {
+        if (activityId == null || activityId <= 0) {
+            throw new IllegalArgumentException("Valid activity ID is required");
+        }
+        Activity activity = activityRepository.findById(activityId);
+        if (activity == null) {
+            throw new IllegalArgumentException("Activity not found with ID: " + activityId);
+        }
+        activityRepository.clearFlag(activityId);
+        activityRepository.updateVerificationFlag(activityId, "OK");
+    }
+
+    private boolean isTreePlantation(String activityType) {
+        return ActivityType.TREE_PLANTATION.getDisplayName().equalsIgnoreCase(activityType)
+                || ActivityType.TREE_PLANTATION.name().equalsIgnoreCase(activityType)
+                || "Tree Plantation".equalsIgnoreCase(activityType);
+    }
+
+    private String appendReason(String existing, String additional) {
+        if (existing == null || existing.isBlank()) {
+            return additional;
+        }
+        if (existing.contains(additional)) {
+            return existing;
+        }
+        return existing + " | " + additional;
     }
 
     public List<Activity> getAllActivities() {

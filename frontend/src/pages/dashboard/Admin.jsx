@@ -16,6 +16,7 @@ const STATUS_STYLES = {
   PENDING: { bg: '#fef3c7', color: '#d97706', label: 'Pending' },
   DECLARED: { bg: '#e0e7ff', color: '#4f46e5', label: 'Declared' },
   PROOF_SUBMITTED: { bg: '#fef3c7', color: '#d97706', label: 'Ready for Review' },
+  FLAGGED: { bg: '#ffedd5', color: '#c2410c', label: 'Flagged' },
   APPROVED: { bg: '#d1fae5', color: '#059669', label: 'Approved' },
   REJECTED: { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' }
 };
@@ -415,6 +416,20 @@ const Admin = () => {
     finally { setActionLoading(null); }
   };
 
+  const handleIgnoreFlag = async (id) => {
+    setActionLoading(id);
+    try {
+      await api.put(`/admin/activities/ignore-flag/${id}`);
+      setActivities(prev => prev.map(a => a.id === id
+          ? { ...a, isFlagged: false, flagReason: null, flagDistanceMeters: null, verificationFlag: 'OK' }
+          : a));
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to clear flag');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteModal) return;
     setActionLoading(deleteModal);
@@ -464,9 +479,16 @@ const Admin = () => {
     return type.includes(categoryTab);
   };
 
+  const matchesStatus = (activity) => {
+    if (statusFilter === 'ALL') return true;
+    if (statusFilter === 'FLAGGED') {
+      return Boolean(activity.isFlagged) || activity.verificationFlag === 'FLAGGED';
+    }
+    return activity.status === statusFilter;
+  };
+
   const filteredActivities = activities.filter(a => {
-    const statusMatch = statusFilter === 'ALL' || a.status === statusFilter;
-    return statusMatch && matchesCategory(a);
+    return matchesStatus(a) && matchesCategory(a);
   });
 
   const countByCategory = (catKey) => activities.filter(a => {
@@ -588,10 +610,10 @@ const Admin = () => {
               </div>
 
               <div className="status-filters">
-                {['ALL','PROOF_SUBMITTED','APPROVED','REJECTED'].map(status => (
+                {['ALL','PROOF_SUBMITTED','FLAGGED','APPROVED','REJECTED'].map(status => (
                     <button key={status} className={`status-filter-btn ${statusFilter === status ? 'active' : ''}`} onClick={() => setStatusFilter(status)}>
                       {status === 'ALL' ? 'All Statuses' : STATUS_STYLES[status]?.label || status}
-                      {status !== 'ALL' && <span style={{marginLeft:'4px', opacity:0.7}}>({activities.filter(a => a.status === status && matchesCategory(a)).length})</span>}
+                      {status !== 'ALL' && <span style={{marginLeft:'4px', opacity:0.7}}>({activities.filter(a => (status === 'FLAGGED' ? (Boolean(a.isFlagged) || a.verificationFlag === 'FLAGGED') : a.status === status) && matchesCategory(a)).length})</span>}
                     </button>
                 ))}
               </div>
@@ -623,7 +645,10 @@ const Admin = () => {
               ) : (
                   <div className="activity-cards">
                     {filteredActivities.map((activity, idx) => {
-                      const statusStyle = STATUS_STYLES[activity.status] || STATUS_STYLES.PENDING;
+                      const derivedStatus = (activity.isFlagged || activity.verificationFlag === 'FLAGGED')
+                          ? 'FLAGGED'
+                          : activity.status;
+                      const statusStyle = STATUS_STYLES[derivedStatus] || STATUS_STYLES.PENDING;
                       const isActionLoading = actionLoading === activity.id;
                       const proofSrc = getProofImageSrc(activity.proofImage);
                       const mapLink = getMapLink(activity.latitude, activity.longitude);
@@ -662,6 +687,16 @@ const Admin = () => {
                                   {mapLink && <div><div className="arc-info-label">Location</div><div className="arc-info-value" style={{fontSize:'0.8rem'}}><a href={mapLink} target="_blank" rel="noreferrer" style={{color:'#2a9d8f', fontWeight:'700'}}>📍 View on Map</a></div></div>}
                                 </div>
                                 {activity.description && <div style={{fontSize:'0.82rem', color:'#666', background:'#f8fffe', padding:'0.6rem 0.75rem', borderRadius:'8px', border:'1px solid #e2eeec'}}>💬 {activity.description}</div>}
+                                {(activity.isFlagged || activity.verificationFlag === 'FLAGGED') && (
+                                  <div style={{background:'#fff7ed', color:'#9a3412', fontSize:'0.8rem', padding:'0.55rem 0.75rem', borderRadius:'8px', fontWeight:700, border:'1px solid #fdba74'}}>
+                                    ⚠️ {activity.flagReason || 'Flagged for administrative review'}
+                                    {typeof activity.flagDistanceMeters === 'number' && (
+                                      <div style={{fontWeight:600, fontSize:'0.76rem', marginTop:'0.2rem'}}>
+                                        Distance from previous plantation: {activity.flagDistanceMeters.toFixed(2)} m
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                                 {activity.status === 'REJECTED' && activity.rejectionReason && <div style={{background:'#fee2e2', color:'#dc2626', fontSize:'0.78rem', padding:'0.3rem 0.75rem', borderRadius:'8px', fontWeight:600, marginTop:'0.5rem'}}>❌ {activity.rejectionReason}</div>}
                               </div>
                               <div className="arc-photos">
@@ -681,6 +716,15 @@ const Admin = () => {
                                     <>
                                       <button className="btn-approve-new" onClick={() => handleApprove(activity.id)} disabled={isActionLoading}>{isActionLoading ? '...' : '✓ Approve'}</button>
                                       <button className="btn-reject-new" onClick={() => { setRejectModal(activity.id); setRejectReason(''); }} disabled={isActionLoading}>✕ Reject</button>
+                                      {(activity.isFlagged || activity.verificationFlag === 'FLAGGED') && (
+                                        <button
+                                          className="btn-cancel"
+                                          onClick={() => handleIgnoreFlag(activity.id)}
+                                          disabled={isActionLoading}
+                                        >
+                                          Ignore Flag
+                                        </button>
+                                      )}
                                     </>
                                 ) : (
                                     <span style={{fontSize:'0.82rem', color:'#aaa'}}>{activity.status === 'APPROVED' ? '✓ Approved' : activity.status === 'REJECTED' ? '✕ Rejected' : '-'}</span>

@@ -20,6 +20,9 @@ public class AdminActivityDto {
     private String proofImage;
     private Double latitude;
     private Double longitude;
+    private Boolean isFlagged;
+    private String flagReason;
+    private Double flagDistanceMeters;
     private LocalDateTime proofTime;
     private LocalDateTime createdAt;
 
@@ -73,6 +76,15 @@ public class AdminActivityDto {
 
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public Boolean getIsFlagged() { return isFlagged; }
+    public void setIsFlagged(Boolean flagged) { isFlagged = flagged; }
+
+    public String getFlagReason() { return flagReason; }
+    public void setFlagReason(String flagReason) { this.flagReason = flagReason; }
+
+    public Double getFlagDistanceMeters() { return flagDistanceMeters; }
+    public void setFlagDistanceMeters(Double flagDistanceMeters) { this.flagDistanceMeters = flagDistanceMeters; }
 
     public LocalDateTime getProofTime() { return proofTime; }
     public void setProofTime(LocalDateTime proofTime) { this.proofTime = proofTime; }

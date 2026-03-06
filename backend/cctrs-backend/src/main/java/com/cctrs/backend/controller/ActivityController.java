@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Base64;
 
 @RestController
@@ -81,7 +82,7 @@ public class ActivityController {
             "multipart/form-data",
             "application/x-www-form-urlencoded"
     })
-    public ResponseEntity<ApiResponse<String>> submitProof(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitProof(
             @PathVariable Long id,
             @RequestParam(required = false) MultipartFile proofImageFile,
             @RequestParam(required = false) String proofImage,
@@ -119,9 +120,19 @@ public class ActivityController {
             throw new IllegalArgumentException("proofImage, latitude, and longitude are required");
         }
 
-        activityService.submitProof(id, user.getId(), resolvedProofImage, resolvedLatitude, resolvedLongitude, resolvedProofTime);
+        Activity updated = activityService.submitProof(id, user.getId(), resolvedProofImage, resolvedLatitude, resolvedLongitude, resolvedProofTime);
 
-        return ResponseEntity.ok(ApiResponse.success("Proof submitted successfully", "PROOF_SUBMITTED"));
+        String message = Boolean.TRUE.equals(updated.getIsFlagged())
+            ? "Proof submitted successfully. This plantation submission has been flagged for administrative review."
+            : "Proof submitted successfully";
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("status", "PROOF_SUBMITTED");
+        payload.put("isFlagged", Boolean.TRUE.equals(updated.getIsFlagged()));
+        payload.put("flagReason", updated.getFlagReason() != null ? updated.getFlagReason() : "");
+        payload.put("flagDistanceMeters", updated.getFlagDistanceMeters());
+
+        return ResponseEntity.ok(ApiResponse.success(message, payload));
     }
 
     @GetMapping

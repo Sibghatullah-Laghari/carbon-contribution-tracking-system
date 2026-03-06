@@ -40,8 +40,12 @@ ALTER TABLE activities ADD COLUMN declared_quantity INT DEFAULT 0;
 ALTER TABLE activities ADD COLUMN proof_image TEXT;
 ALTER TABLE activities ADD COLUMN latitude DOUBLE;
 ALTER TABLE activities ADD COLUMN longitude DOUBLE;
+ALTER TABLE activities ADD COLUMN is_flagged BOOLEAN DEFAULT FALSE;
+ALTER TABLE activities ADD COLUMN flag_reason VARCHAR(255);
+ALTER TABLE activities ADD COLUMN flag_distance_meters DOUBLE;
 ALTER TABLE activities ADD COLUMN proof_time TIMESTAMP;
 ALTER TABLE activities ADD COLUMN verification_flag VARCHAR(20) DEFAULT 'OK';
+CREATE INDEX idx_tree_location ON activities(user_id, latitude, longitude);
 
 CREATE TABLE user_daily_limits (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

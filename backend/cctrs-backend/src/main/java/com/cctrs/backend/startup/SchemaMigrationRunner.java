@@ -29,6 +29,19 @@ public class SchemaMigrationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         fixProofImageColumnType();
+        ensureTreeAbuseDetectionColumns();
+    }
+
+    private void ensureTreeAbuseDetectionColumns() {
+        try {
+            jdbc.execute("ALTER TABLE activities ADD COLUMN IF NOT EXISTS is_flagged BOOLEAN DEFAULT FALSE");
+            jdbc.execute("ALTER TABLE activities ADD COLUMN IF NOT EXISTS flag_reason VARCHAR(255)");
+            jdbc.execute("ALTER TABLE activities ADD COLUMN IF NOT EXISTS flag_distance_meters DOUBLE PRECISION");
+            jdbc.execute("CREATE INDEX IF NOT EXISTS idx_tree_location ON activities(user_id, latitude, longitude)");
+            log.info("SchemaMigration: ensured anti-abuse columns/index for activities table.");
+        } catch (Exception e) {
+            log.error("SchemaMigration: failed to ensure anti-abuse schema changes. Error: {}", e.getMessage());
+        }
     }
 
     /**

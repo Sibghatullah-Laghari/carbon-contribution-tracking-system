@@ -2,7 +2,6 @@ package com.cctrs.backend.controller;
 
 import com.cctrs.backend.dto.AdminActivityDto;
 import com.cctrs.backend.dto.ApiResponse;
-import com.cctrs.backend.model.Activity;
 import com.cctrs.backend.dto.RejectionRequest;
 import com.cctrs.backend.service.ActivityService;
 import org.springframework.http.ResponseEntity;
@@ -92,6 +91,21 @@ public class AdminActivityController {
         activityService.rejectActivity(id, reason);
         return ResponseEntity.ok(
                 ApiResponse.success("Activity rejected and user notified", null));
+    }
+
+    /**
+     * Admin ignores an abuse flag but keeps the activity.
+     * Path: PUT /admin/activities/ignore-flag/{id}
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Ignore flag on an activity")
+    @PutMapping("/ignore-flag/{id}")
+    public ResponseEntity<ApiResponse<Void>> ignoreFlag(@PathVariable Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("Valid activity ID is required");
+        }
+        logger.info("Admin clearing flag for activity ID: {}", id);
+        activityService.ignoreActivityFlag(id);
+        return ResponseEntity.ok(ApiResponse.success("Activity flag cleared", null));
     }
 
     /**

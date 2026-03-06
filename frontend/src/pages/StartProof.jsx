@@ -160,10 +160,16 @@ export default function StartProof() {
       formData.append("latitude", String(location.lat));
       formData.append("longitude", String(location.lon));
       formData.append("proofTime", new Date().toISOString().replace("Z", ""));
-      await api.post(`/api/activities/${activityId}/proof`, formData, {
+      const response = await api.post(`/api/activities/${activityId}/proof`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
-      setMessage("✅ Proof submitted successfully! Redirecting...");
+      const payload = response?.data?.data || {};
+      const isFlagged = Boolean(payload?.isFlagged);
+      setMessage(
+        isFlagged
+          ? "This plantation submission has been flagged for administrative review."
+          : "✅ Proof submitted successfully! Redirecting..."
+      );
       sessionStorage.removeItem("proofSession");
       setTimeout(() => navigate("/my-activities"), 2000);
     } catch (err) {

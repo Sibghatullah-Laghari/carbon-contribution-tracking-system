@@ -29,7 +29,7 @@ public class ActivityRepository {
     }
 
     public Activity save(Activity activity) {
-        String sql = "INSERT INTO activities (user_id, activity_type, points, status, created_at, description, declared_quantity, verification_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO activities (user_id, activity_type, points, status, created_at, description, declared_quantity, verification_flag, is_flagged, flag_reason, flag_distance_meters) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -43,6 +43,9 @@ public class ActivityRepository {
             ps.setString(6, activity.getDescription());
             ps.setInt(7, activity.getDeclaredQuantity() != null ? activity.getDeclaredQuantity() : 0);
             ps.setString(8, activity.getVerificationFlag());
+            ps.setBoolean(9, Boolean.TRUE.equals(activity.getIsFlagged()));
+            ps.setString(10, activity.getFlagReason());
+            ps.setObject(11, activity.getFlagDistanceMeters());
             return ps;
         }, keyHolder);
 
@@ -218,6 +221,13 @@ public class ActivityRepository {
                 activityId);
     }
 
+    public void updateVerificationFlag(Long activityId, String verificationFlag) {
+        jdbcTemplate.update(
+                "UPDATE activities SET verification_flag = ? WHERE id = ?",
+                verificationFlag,
+                activityId);
+    }
+
     public void updateRejectionReason(Long activityId, String reason) {
         jdbcTemplate.update(
                 "UPDATE activities SET rejection_reason = ? WHERE id = ?",
@@ -230,9 +240,32 @@ public class ActivityRepository {
     }
 
     public void submitProof(Long activityId, String proofImage, Double lat, Double lon,
-            java.time.LocalDateTime proofTime) {
-        String sql = "UPDATE activities SET proof_image = ?, latitude = ?, longitude = ?, proof_time = ?, status = 'PROOF_SUBMITTED' WHERE id = ?";
-        jdbcTemplate.update(sql, proofImage, lat, lon, proofTime, activityId);
+            java.time.LocalDateTime proofTime,
+            boolean isFlagged,
+            String flagReason,
+            Double flagDistanceMeters) {
+        String sql = "UPDATE activities SET proof_image = ?, latitude = ?, longitude = ?, proof_time = ?, status = 'PROOF_SUBMITTED', is_flagged = ?, flag_reason = ?, flag_distance_meters = ? WHERE id = ?";
+        jdbcTemplate.update(sql, proofImage, lat, lon, proofTime, isFlagged, flagReason, flagDistanceMeters, activityId);
+    }
+
+    public Double findNearestTreeDistanceMeters(Long userId, Double latitude, Double longitude) {
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        String sql = "SELECT MIN(6371000 * 2 * ASIN(SQRT(POWER(SIN(RADIANS((latitude - ?) / 2)), 2) + COS(RADIANS(?)) * COS(RADIANS(latitude)) * POWER(SIN(RADIANS((longitude - ?) / 2)), 2)))) " +
+                "FROM activities WHERE user_id = ? AND activity_type = 'Tree Plantation' AND latitude IS NOT NULL AND longitude IS NOT NULL";
+        return jdbcTemplate.queryForObject(sql, Double.class, latitude, latitude, longitude, userId);
+    }
+
+    public int getTodayTreePlantationTotal(Long userId, LocalDate date) {
+        String sql = "SELECT COALESCE(SUM(declared_quantity), 0) FROM activities " +
+                "WHERE user_id = ? AND activity_type = 'Tree Plantation' AND DATE(created_at) = ?";
+        Integer total = jdbcTemplate.queryForObject(sql, Integer.class, userId, date);
+        return total != null ? total : 0;
+    }
+
+    public void clearFlag(Long activityId) {
+        jdbcTemplate.update("UPDATE activities SET is_flagged = FALSE, flag_reason = NULL, flag_distance_meters = NULL WHERE id = ?", activityId);
     }
 
     /**

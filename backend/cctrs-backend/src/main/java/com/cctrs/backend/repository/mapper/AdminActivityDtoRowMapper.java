@@ -27,6 +27,12 @@ public class AdminActivityDtoRowMapper implements RowMapper<AdminActivityDto> {
         dto.setProofImage(rs.getString("proof_image"));
         dto.setLatitude(rs.getObject("latitude") != null ? rs.getDouble("latitude") : null);
         dto.setLongitude(rs.getObject("longitude") != null ? rs.getDouble("longitude") : null);
+        try { dto.setIsFlagged(rs.getBoolean("is_flagged")); } catch (SQLException ignored) {}
+        try { dto.setFlagReason(rs.getString("flag_reason")); } catch (SQLException ignored) {}
+        try {
+            dto.setFlagDistanceMeters(rs.getObject("flag_distance_meters") != null
+                ? rs.getDouble("flag_distance_meters") : null);
+        } catch (SQLException ignored) {}
         dto.setProofTime(rs.getTimestamp("proof_time") != null
                 ? rs.getTimestamp("proof_time").toLocalDateTime() : null);
         dto.setCreatedAt(rs.getTimestamp("created_at") != null
