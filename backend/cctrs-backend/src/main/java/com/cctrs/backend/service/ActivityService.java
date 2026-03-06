@@ -155,6 +155,21 @@ public class ActivityService {
             }
         }
 
+        // RULE 3: GPS mismatch for Public Transport (declared distance vs GPS-measured distance)
+        if (isPublicTransport(activity.getActivityType())
+                && activity.getLatitude() != null && activity.getLongitude() != null
+                && lat != null && lon != null
+                && activity.getDeclaredQuantity() != null && activity.getDeclaredQuantity() > 0) {
+            double measuredKm = haversineKm(activity.getLatitude(), activity.getLongitude(), lat, lon);
+            double declaredKm = activity.getDeclaredQuantity();
+            double ratio = Math.abs(declaredKm - measuredKm) / declaredKm;
+            if (ratio > 0.70) {
+                isFlagged = true;
+                flagReason = appendReason(flagReason,
+                        String.format("GPS mismatch: declared %.1f km, GPS measured %.1f km", declaredKm, measuredKm));
+            }
+        }
+
         String verificationFlag = isFlagged ? "FLAGGED" : "OK";
 
         activityRepository.submitProof(activityId, proofImage, lat, lon, proofTime, isFlagged, flagReason,
@@ -189,6 +204,23 @@ public class ActivityService {
         return ActivityType.TREE_PLANTATION.getDisplayName().equalsIgnoreCase(activityType)
                 || ActivityType.TREE_PLANTATION.name().equalsIgnoreCase(activityType)
                 || "Tree Plantation".equalsIgnoreCase(activityType);
+    }
+
+    private boolean isPublicTransport(String activityType) {
+        if (activityType == null) return false;
+        return ActivityType.PUBLIC_TRANSPORT.getDisplayName().equalsIgnoreCase(activityType)
+                || ActivityType.PUBLIC_TRANSPORT.name().equalsIgnoreCase(activityType)
+                || activityType.toUpperCase().contains("TRANSPORT");
+    }
+
+    private double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private String appendReason(String existing, String additional) {

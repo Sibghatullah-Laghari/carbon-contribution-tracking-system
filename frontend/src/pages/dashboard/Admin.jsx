@@ -60,11 +60,12 @@ const AnalyticsEngine = ({ activities }) => {
     const approved = filteredActivities.filter(a => a.status === 'APPROVED').length;
     const rejected = filteredActivities.filter(a => a.status === 'REJECTED').length;
     const pending = filteredActivities.filter(a => a.status === 'PENDING' || a.status === 'PROOF_SUBMITTED').length;
+    const flagged = filteredActivities.filter(a => Boolean(a.isFlagged) || a.verificationFlag === 'FLAGGED').length;
     const trees = filteredActivities.filter(a => getCatKey(a) === 'tree').length;
     const transport = filteredActivities.filter(a => getCatKey(a) === 'transport').length;
     const recycling = filteredActivities.filter(a => getCatKey(a) === 'recycling').length;
     const approvalRate = total > 0 ? ((approved / total) * 100).toFixed(1) : 0;
-    return { total, approved, rejected, pending, trees, transport, recycling, approvalRate };
+    return { total, approved, rejected, pending, flagged, trees, transport, recycling, approvalRate };
   }, [filteredActivities]);
 
   const timelineData = useMemo(() => {
@@ -217,6 +218,7 @@ const AnalyticsEngine = ({ activities }) => {
             ['✅', stats.approved, 'Approved', '#059669', 'approved'],
             ['❌', stats.rejected, 'Rejected', '#dc2626', 'rejected'],
             ['⏳', stats.pending, 'Pending', '#d97706', 'pending'],
+            ['⚠️', stats.flagged, 'Flagged', '#c2410c', 'flagged'],
             ['🌳', stats.trees, 'Tree Plantation', '#16a34a', 'tree'],
             ['🚌', stats.transport, 'Public Transport', '#2a9d8f', 'transport'],
             ['♻️', stats.recycling, 'Recycling', '#7c3aed', 'recycling'],
@@ -355,6 +357,54 @@ const AnalyticsEngine = ({ activities }) => {
                   )}
                 </div>
               </div>
+
+              {/* FLAGGED BREAKDOWN */}
+              {stats.flagged > 0 && (
+                  <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', border:'1.5px solid #fdba74', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', marginTop:'1.5rem'}}>
+                    <div style={{fontSize:'0.92rem', fontWeight:800, color:'#9a3412', marginBottom:'1.25rem'}}>⚠️ Flagged Activities Breakdown — {periodLabel} ({stats.flagged} flagged)</div>
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem'}}>
+                      <div>
+                        <div style={{fontSize:'0.78rem', fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'0.75rem'}}>By Category</div>
+                        {[
+                          { key: 'tree', label: '🌳 Tree Plantation' },
+                          { key: 'transport', label: '🚌 Public Transport' },
+                          { key: 'recycling', label: '♻️ Recycling' },
+                        ].map(({ key, label }) => {
+                          const count = filteredActivities.filter(a =>
+                            (Boolean(a.isFlagged) || a.verificationFlag === 'FLAGGED') && getCatKey(a) === key
+                          ).length;
+                          return count > 0 ? (
+                            <div key={key} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.5rem 0.75rem', background:'#fff7ed', borderRadius:'8px', marginBottom:'0.4rem', border:'1px solid #fed7aa'}}>
+                              <span style={{fontWeight:600, fontSize:'0.85rem', color:'#333'}}>{label}</span>
+                              <span style={{fontWeight:800, color:'#c2410c', fontSize:'0.9rem'}}>{count}</span>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                      <div>
+                        <div style={{fontSize:'0.78rem', fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'0.75rem'}}>Top Flagged Users</div>
+                        {(() => {
+                          const userMap = {};
+                          filteredActivities
+                            .filter(a => Boolean(a.isFlagged) || a.verificationFlag === 'FLAGGED')
+                            .forEach(a => {
+                              const name = a.userName || a.userUsername || 'Unknown';
+                              userMap[name] = (userMap[name] || 0) + 1;
+                            });
+                          return Object.entries(userMap)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 5)
+                            .map(([name, count]) => (
+                              <div key={name} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.5rem 0.75rem', background:'#fff7ed', borderRadius:'8px', marginBottom:'0.4rem', border:'1px solid #fed7aa'}}>
+                                <span style={{fontWeight:600, fontSize:'0.85rem', color:'#333'}}>👤 {name}</span>
+                                <span style={{fontWeight:800, color:'#c2410c', fontSize:'0.9rem'}}>{count} flagged</span>
+                              </div>
+                            ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+              )}
             </>
         )}
       </div>
@@ -584,6 +634,7 @@ const Admin = () => {
           <div className="metric-card metric-pending"><div className="metric-value">{pendingCount}</div><div className="metric-label">Pending Review</div></div>
           <div className="metric-card metric-approved"><div className="metric-value">{activities.filter(a => a.status === 'APPROVED').length}</div><div className="metric-label">Approved</div></div>
           <div className="metric-card metric-rejected"><div className="metric-value">{activities.filter(a => a.status === 'REJECTED').length}</div><div className="metric-label">Rejected</div></div>
+          <div className="metric-card" style={{borderTop:'3px solid #c2410c'}}><div className="metric-value" style={{color:'#c2410c'}}>{activities.filter(a => Boolean(a.isFlagged) || a.verificationFlag === 'FLAGGED').length}</div><div className="metric-label">⚠ Flagged</div></div>
         </div>
 
         {/* MAIN TABS */}
