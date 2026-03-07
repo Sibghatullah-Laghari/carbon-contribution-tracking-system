@@ -1,8 +1,12 @@
 HELP.md
 target/
+*.jar
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+# Node (not typical for backend, but excluded for safety)
+node_modules/
 
 ### STS ###
 .apt_generated
@@ -31,3 +35,31 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs/crash dumps
+logs/
+*.log
+hs_err_pid*
+replay_pid*
+
+# H2 local database files
+data/
+backend/cctrs-backend/data/
+
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local / temp databases
+data/
+*.db
+*.lock.db
+*.trace.db

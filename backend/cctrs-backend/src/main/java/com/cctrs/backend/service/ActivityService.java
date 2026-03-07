@@ -1,5 +1,6 @@
 package com.cctrs.backend.service;
 
+import com.cctrs.backend.dto.AdminActivityDto;
 import com.cctrs.backend.model.Activity;
 import com.cctrs.backend.model.ActivityType;
 import com.cctrs.backend.model.User;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -51,6 +53,8 @@ public class ActivityService {
 
         // Default verification flag
         String flag = "OK";
+        boolean isFlagged = false;
+        String flagReason = null;
 
         // RULE 1: Daily Limit Check
         // Update daily limits and check bounds
@@ -71,17 +75,18 @@ public class ActivityService {
                 java.time.LocalDate.now());
         if (limit != null && limit.getActivityCount() > 10) {
             flag = "FLAGGED";
+            isFlagged = true;
         }
 
-        if (ActivityType.TREE_PLANTATION.getDisplayName().equalsIgnoreCase(activity.getActivityType()) ||
-                "Tree Plantation".equalsIgnoreCase(activity.getActivityType())) {
+        if (isTreePlantation(activity.getActivityType())) {
             dailyLimitRepository.incrementTreeCount(activity.getUserId(), java.time.LocalDate.now(), quantity);
 
-            // Check Tree Limit (Rule: Max 5 trees per day)
-            // Re-fetch limit to get updated tree count
-            limit = dailyLimitRepository.findByUserIdAndDate(activity.getUserId(), java.time.LocalDate.now());
-            if (limit != null && limit.getTreesDeclared() > 5) {
+            // Required anti-abuse rule: flag if today's total is already at limit.
+            int todayTreeTotal = activityRepository.getTodayTreePlantationTotal(activity.getUserId(), LocalDate.now());
+            if (todayTreeTotal >= 10) {
                 flag = "FLAGGED";
+                isFlagged = true;
+                flagReason = appendReason(flagReason, "Daily plantation limit exceeded (10 trees)");
             }
         }
 
@@ -101,6 +106,8 @@ public class ActivityService {
 
         activity.setStatus("DECLARED");
         activity.setVerificationFlag(flag);
+        activity.setIsFlagged(isFlagged);
+        activity.setFlagReason(flagReason);
 
         // Set timestamp if not provided
         if (activity.getCreatedAt() == null) {
@@ -120,7 +127,7 @@ public class ActivityService {
     }
 
     // Submit Proof (Stage 2)
-    public void submitProof(Long activityId, Long userId, String proofImage, Double lat, Double lon,
+    public Activity submitProof(Long activityId, Long userId, String proofImage, Double lat, Double lon,
             LocalDateTime proofTime) {
         Activity activity = activityRepository.findById(activityId);
         if (activity == null) {
@@ -135,30 +142,147 @@ public class ActivityService {
             throw new IllegalArgumentException("Activity is not in DECLARED state");
         }
 
-        // Update proof details
-        // Using repository method or JDBC template directly? ActivityRepository needs
-        // an update method or we extend it here.
-        // Better to add method in Repository or use setters and save? Repository.save
-        // handles INSERT usually.
-        // ActivityRepository has updateStatus but not full update.
-        // I will add updateProofDetails to ActivityRepository in next step or use a
-        // custom query here via the repo?
-        // Wait, I can't modify Repo class here. I need to rely on what's available or
-        // add to Repo.
-        // I'll assume I can add `updateProof` to `ActivityRepository`.
-        // For now, let's throw if not implemented, or better, implement `updateProof`
-        // implementation in Repo first.
-        // Or I can use setters and a `save` if `save` handles updates (check `save`
-        // implementation).
-        // `save` implementation had `INSERT` SQL. It does NOT handle update.
-        // So I must add an update method to ActivityRepository.
+        boolean isFlagged = Boolean.TRUE.equals(activity.getIsFlagged()) ||
+                "FLAGGED".equalsIgnoreCase(activity.getVerificationFlag());
+        String flagReason = activity.getFlagReason();
+        Double duplicateDistanceMeters = null;
 
-        // I'll call a method I will create in ActivityRepository
-        activityRepository.submitProof(activityId, proofImage, lat, lon, proofTime);
+        if (isTreePlantation(activity.getActivityType())) {
+            duplicateDistanceMeters = activityRepository.findNearestTreeDistanceMeters(userId, lat, lon);
+            if (duplicateDistanceMeters != null && duplicateDistanceMeters <= 10.0d) {
+                isFlagged = true;
+                flagReason = appendReason(flagReason, "Plantation within 10 meters of previous tree");
+            }
+        }
+
+        // RULE 3: GPS mismatch for Public Transport (declared distance vs GPS-measured distance)
+        if (isPublicTransport(activity.getActivityType())
+                && activity.getLatitude() != null && activity.getLongitude() != null
+                && lat != null && lon != null
+                && activity.getDeclaredQuantity() != null && activity.getDeclaredQuantity() > 0) {
+            double measuredKm = haversineKm(activity.getLatitude(), activity.getLongitude(), lat, lon);
+            double declaredKm = activity.getDeclaredQuantity();
+            double ratio = Math.abs(declaredKm - measuredKm) / declaredKm;
+            if (ratio > 0.70) {
+                isFlagged = true;
+                flagReason = appendReason(flagReason,
+                        String.format("GPS mismatch: declared %.1f km, GPS measured %.1f km", declaredKm, measuredKm));
+            }
+        }
+
+        String verificationFlag = isFlagged ? "FLAGGED" : "OK";
+
+        activityRepository.submitProof(activityId, proofImage, lat, lon, proofTime, isFlagged, flagReason,
+                duplicateDistanceMeters);
+        activityRepository.updateVerificationFlag(activityId, verificationFlag);
+
+        activity.setProofImage(proofImage);
+        activity.setLatitude(lat);
+        activity.setLongitude(lon);
+        activity.setProofTime(proofTime);
+        activity.setStatus("PROOF_SUBMITTED");
+        activity.setVerificationFlag(verificationFlag);
+        activity.setIsFlagged(isFlagged);
+        activity.setFlagReason(flagReason);
+        activity.setFlagDistanceMeters(duplicateDistanceMeters);
+        return activity;
+    }
+
+    public void ignoreActivityFlag(Long activityId) {
+        if (activityId == null || activityId <= 0) {
+            throw new IllegalArgumentException("Valid activity ID is required");
+        }
+        Activity activity = activityRepository.findById(activityId);
+        if (activity == null) {
+            throw new IllegalArgumentException("Activity not found with ID: " + activityId);
+        }
+        activityRepository.clearFlag(activityId);
+        activityRepository.updateVerificationFlag(activityId, "OK");
+    }
+
+    private boolean isTreePlantation(String activityType) {
+        return ActivityType.TREE_PLANTATION.getDisplayName().equalsIgnoreCase(activityType)
+                || ActivityType.TREE_PLANTATION.name().equalsIgnoreCase(activityType)
+                || "Tree Plantation".equalsIgnoreCase(activityType);
+    }
+
+    private boolean isPublicTransport(String activityType) {
+        if (activityType == null) return false;
+        return ActivityType.PUBLIC_TRANSPORT.getDisplayName().equalsIgnoreCase(activityType)
+                || ActivityType.PUBLIC_TRANSPORT.name().equalsIgnoreCase(activityType)
+                || activityType.toUpperCase().contains("TRANSPORT");
+    }
+
+    private double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private String appendReason(String existing, String additional) {
+        if (existing == null || existing.isBlank()) {
+            return additional;
+        }
+        if (existing.contains(additional)) {
+            return existing;
+        }
+        return existing + " | " + additional;
     }
 
     public List<Activity> getAllActivities() {
         return activityRepository.findAll();
+    }
+
+    /**
+     * Returns all activities enriched with the submitting user's name/email.
+     * Used exclusively by the Admin Panel.
+     */
+    public List<AdminActivityDto> getAllActivitiesWithUser() {
+        return activityRepository.findAllWithUser();
+    }
+
+    /**
+     * Dynamic search for admin — filters by query text, category, status, date range.
+     * Optionally includes archived and/or deleted records.
+     */
+    public List<AdminActivityDto> searchActivities(String query, String category,
+                                                    String status, String dateFrom,
+                                                    String dateTo,
+                                                    boolean includeArchived,
+                                                    boolean includeDeleted) {
+        return activityRepository.searchActivities(query, category, status, dateFrom, dateTo,
+                includeArchived, includeDeleted);
+    }
+
+    /**
+     * Admin deletes (soft) an activity.
+     * Scores / points are preserved in users.points.
+     */
+    public void deleteActivity(Long activityId) {
+        if (activityId == null || activityId <= 0) {
+            throw new IllegalArgumentException("Valid activity ID is required");
+        }
+        Activity activity = activityRepository.findById(activityId);
+        if (activity == null) {
+            throw new IllegalArgumentException("Activity not found with ID: " + activityId);
+        }
+        activityRepository.deleteById(activityId); // now a soft-delete
+        logger.info("Admin soft-deleted activity ID: {}", activityId);
+    }
+
+    /**
+     * Admin bulk-deletes (soft) a list of activities.
+     * Returns the count of rows actually updated.
+     */
+    public int bulkDeleteActivities(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No activity IDs provided");
+        int count = activityRepository.bulkSoftDeleteByIds(ids);
+        logger.info("Admin bulk soft-deleted {} activities", count);
+        return count;
     }
 
     public List<Activity> getActivitiesByUser(Long userId) {
@@ -168,11 +292,67 @@ public class ActivityService {
         return activityRepository.findByUserId(userId);
     }
 
+    /**
+     * User deletes ONE of their own activities (any status).
+     * Implemented as a soft-delete — the row is hidden from UI but scores are preserved.
+     */
+    public void deleteUserActivity(Long activityId, Long userId) {
+        if (activityId == null || activityId <= 0) throw new IllegalArgumentException("Valid activity ID is required");
+        if (userId == null || userId <= 0)         throw new IllegalArgumentException("Valid user ID is required");
+
+        Activity activity = activityRepository.findById(activityId);
+        // findById now returns only non-deleted/non-archived, so also try a raw lookup
+        if (activity == null) throw new IllegalArgumentException("Activity not found");
+        if (!activity.getUserId().equals(userId)) throw new SecurityException("Not authorised to delete this activity");
+
+        activityRepository.deleteById(activityId); // soft-delete — scores intact
+        logger.info("User {} soft-deleted activity {}", userId, activityId);
+    }
+
+    /**
+     * User bulk-deletes a list of their own activities (any status).
+     * Validates ownership per ID, then performs a single bulk soft-delete.
+     * Returns the count of actually deleted records.
+     */
+    public int bulkDeleteUserActivities(java.util.List<Long> ids, Long userId) {
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No activity IDs provided");
+        if (userId == null || userId <= 0)   throw new IllegalArgumentException("Valid user ID is required");
+
+        // Collect IDs that are owned by this user
+        java.util.List<Long> validIds = new java.util.ArrayList<>();
+        for (Long id : ids) {
+            try {
+                if (id == null) continue;
+                Activity activity = activityRepository.findById(id);
+                if (activity == null) continue;
+                if (!activity.getUserId().equals(userId)) continue; // ownership check
+                validIds.add(id);
+            } catch (Exception e) {
+                logger.warn("Skipping activity {} during bulk delete check: {}", id, e.getMessage());
+            }
+        }
+        int deleted = activityRepository.bulkSoftDeleteByIds(validIds);
+        logger.info("User {} bulk soft-deleted {} activities out of {} requested", userId, deleted, ids.size());
+        return deleted;
+    }
+
     public List<Activity> getActivitiesByStatus(String status) {
         if (status == null || status.trim().isEmpty()) {
             throw new IllegalArgumentException("Valid status is required");
         }
         return activityRepository.findByStatus(status);
+    }
+
+    /**
+     * Archive activities older than 30 days.
+     * Called by the scheduled job — preserves rows and scores, just hides from default views.
+     * Returns the count of newly archived rows.
+     */
+    public int archiveOldActivities() {
+        java.time.LocalDateTime cutoff = java.time.LocalDateTime.now().minusDays(30);
+        int count = activityRepository.archiveOlderThan(cutoff);
+        logger.info("Archived {} activities older than 30 days (cutoff: {})", count, cutoff);
+        return count;
     }
 
     // Admin approves activity

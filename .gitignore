@@ -19,6 +19,40 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node/Vite
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+
+# Build outputs
+build/
+**/build/
+out/
+**/out/
+
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs/crash dumps
+logs/
+*.log
 hs_err_pid*
 replay_pid*
+
+# Maven/Gradle build output
+target/
+**/target/

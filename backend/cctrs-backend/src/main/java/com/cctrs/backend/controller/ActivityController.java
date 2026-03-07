@@ -19,23 +19,9 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Base64;
 
-/**
- * ActivityController handles all activity-related API endpoints
- * Endpoints: /api/activities
- *
- * Activity workflow:
- * 1. User submits activity (POST /api/activities) - Status: PENDING
- * 2. Admin approves activity (PUT /api/activities/approve/{id}) - Status:
- * APPROVED
- * - Points are automatically added to user
- * - Approval email is sent to user
- * 3. Admin rejects activity (PUT /api/activities/reject/{id}) - Status:
- * REJECTED
- * - Optional rejection reason can be provided
- * - Rejection email is sent to user with reason
- */
 @RestController
 @RequestMapping("/api/activities")
 public class ActivityController {
@@ -49,30 +35,17 @@ public class ActivityController {
         this.userRepository = userRepository;
     }
 
-    /**
-     * Submit a new eco-friendly activity
-     * 
-     * @param requestDto Activity details
-     * @return Created activity
-     */
     @io.swagger.v3.oas.annotations.Operation(summary = "Submit a new activity")
     @PostMapping
     public ResponseEntity<ApiResponse<Activity>> createActivity(
             @jakarta.validation.Valid @RequestBody com.cctrs.backend.dto.ActivityRequestDto requestDto) {
 
-        // Extract user from JWT
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth == null) {
-            throw new IllegalArgumentException("User not authenticated");
-        }
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
 
         String email = auth.getName();
         User user = userRepository.findByEmail(email);
-
-        if (user == null) {
-            throw new IllegalArgumentException("User not found");
-        }
+        if (user == null) throw new IllegalArgumentException("User not found");
 
         logger.info("User {} creating activity: {}", email, requestDto.getActivityType());
 
@@ -80,14 +53,11 @@ public class ActivityController {
         if (activityType != null) {
             try {
                 activityType = ActivityType.valueOf(activityType).getDisplayName();
-            } catch (IllegalArgumentException ignored) {
-            }
+            } catch (IllegalArgumentException ignored) {}
         }
 
         Integer declaredQuantity = requestDto.getDeclaredQuantity();
-        if (declaredQuantity == null) {
-            declaredQuantity = 1;
-        }
+        if (declaredQuantity == null) declaredQuantity = 1;
 
         Activity activity = new Activity();
         activity.setUserId(user.getId());
@@ -97,7 +67,6 @@ public class ActivityController {
         activity.setDeclaredQuantity(declaredQuantity);
         activity.setCreatedAt(LocalDateTime.now());
 
-        // Use declareActivity for the new flow (Stage 1)
         Activity savedActivity = activityService.declareActivity(activity);
         logger.info("Activity created successfully with ID: {}", savedActivity.getId());
 
@@ -107,34 +76,26 @@ public class ActivityController {
 
     /**
      * Stage 2: Submit Proof for an Activity
+     * Accepts multipart/form-data ONLY
      */
-    @PostMapping("/{id}/proof")
-    public ResponseEntity<ApiResponse<String>> submitProof(
+    @PostMapping(value = "/{id}/proof", consumes = {
+            "multipart/form-data",
+            "application/x-www-form-urlencoded"
+    })
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitProof(
             @PathVariable Long id,
             @RequestParam(required = false) MultipartFile proofImageFile,
             @RequestParam(required = false) String proofImage,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
-            @RequestParam(required = false) String proofTime,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestParam(required = false) String proofTime) {
 
-        // Extract user from JWT
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth == null) {
-            throw new IllegalArgumentException("User not authenticated");
-        }
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
 
         String email = auth.getName();
         User user = userRepository.findByEmail(email);
-
-        if (user == null) {
-            throw new IllegalArgumentException("User not found");
-        }
-
-        // Verify ownership handled in service or here.
-        // Best to fetch activity here or pass owner ID to service to verify.
-        // Let's pass user.getId() to service to verify ownership.
+        if (user == null) throw new IllegalArgumentException("User not found");
 
         String resolvedProofImage = proofImage;
         Double resolvedLatitude = latitude;
@@ -152,101 +113,56 @@ public class ActivityController {
         if (proofTime != null && !proofTime.trim().isEmpty()) {
             try {
                 resolvedProofTime = LocalDateTime.parse(proofTime);
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (body != null) {
-            if (resolvedProofImage == null && body.get("proofImage") != null) {
-                resolvedProofImage = body.get("proofImage").toString();
-            }
-            if (resolvedLatitude == null && body.get("latitude") != null) {
-                Object value = body.get("latitude");
-                resolvedLatitude = value instanceof Number ? ((Number) value).doubleValue()
-                        : Double.valueOf(value.toString());
-            }
-            if (resolvedLongitude == null && body.get("longitude") != null) {
-                Object value = body.get("longitude");
-                resolvedLongitude = value instanceof Number ? ((Number) value).doubleValue()
-                        : Double.valueOf(value.toString());
-            }
-            if (body.get("proofTime") != null) {
-                try {
-                    resolvedProofTime = LocalDateTime.parse(body.get("proofTime").toString());
-                } catch (Exception ignored) {
-                }
-            }
+            } catch (Exception ignored) {}
         }
 
         if (resolvedProofImage == null || resolvedLatitude == null || resolvedLongitude == null) {
             throw new IllegalArgumentException("proofImage, latitude, and longitude are required");
         }
 
-        activityService.submitProof(id, user.getId(), resolvedProofImage, resolvedLatitude, resolvedLongitude,
-                resolvedProofTime);
+        Activity updated = activityService.submitProof(id, user.getId(), resolvedProofImage, resolvedLatitude, resolvedLongitude, resolvedProofTime);
 
-        return ResponseEntity.ok(ApiResponse.success("Proof submitted successfully", "PROOF_SUBMITTED"));
+        String message = Boolean.TRUE.equals(updated.getIsFlagged())
+            ? "Proof submitted successfully. This plantation submission has been flagged for administrative review."
+            : "Proof submitted successfully";
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("status", "PROOF_SUBMITTED");
+        payload.put("isFlagged", Boolean.TRUE.equals(updated.getIsFlagged()));
+        payload.put("flagReason", updated.getFlagReason() != null ? updated.getFlagReason() : "");
+        payload.put("flagDistanceMeters", updated.getFlagDistanceMeters());
+
+        return ResponseEntity.ok(ApiResponse.success(message, payload));
     }
 
-    /**
-     * Retrieve all activities for the logged-in user
-     * 
-     * @return List of activities by user (any status)
-     */
     @GetMapping
     public ResponseEntity<ApiResponse<List<Activity>>> getAllActivities() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth == null) {
-            throw new IllegalArgumentException("User not authenticated");
-        }
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
 
         String email = auth.getName();
         User user = userRepository.findByEmail(email);
-
-        if (user == null) {
-            throw new IllegalArgumentException("User not found");
-        }
+        if (user == null) throw new IllegalArgumentException("User not found");
 
         List<Activity> activities = activityService.getActivitiesByUser(user.getId());
         return ResponseEntity.ok(ApiResponse.success("User activities retrieved", activities));
     }
 
-    /**
-     * Retrieve all activities submitted by the logged-in user
-     * 
-     * @return List of activities by user (any status)
-     */
     @GetMapping("/user")
     public ResponseEntity<ApiResponse<List<Activity>>> getUserActivities() {
-
-        // Extract user from JWT
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth == null) {
-            throw new IllegalArgumentException("User not authenticated");
-        }
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
 
         String email = auth.getName();
         User user = userRepository.findByEmail(email);
-
-        if (user == null) {
-            throw new IllegalArgumentException("User not found");
-        }
+        if (user == null) throw new IllegalArgumentException("User not found");
 
         List<Activity> activities = activityService.getActivitiesByUser(user.getId());
         return ResponseEntity.ok(ApiResponse.success("User activities retrieved", activities));
     }
 
-    /**
-     * Retrieve all activities with a specific status
-     * 
-     * @param status Activity status (PENDING, APPROVED)
-     * @return List of activities with given status
-     */
     @GetMapping("/status/{status}")
     public ResponseEntity<ApiResponse<List<Activity>>> getActivitiesByStatus(@PathVariable String status) {
-
         if (status == null || status.trim().isEmpty()) {
             throw new IllegalArgumentException("Valid status is required");
         }
@@ -259,6 +175,50 @@ public class ActivityController {
 
         List<Activity> activities = activityService.getActivitiesByStatus(status);
         return ResponseEntity.ok(ApiResponse.success("Activities retrieved by status", activities));
+    }
+
+    /**
+     * User deletes a single one of their own DECLARED / PENDING activities.
+     * DELETE /api/activities/{id}
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Delete a user's own activity (DECLARED or PENDING only)")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUserActivity(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+        if (user == null) throw new IllegalArgumentException("User not found");
+
+        activityService.deleteUserActivity(id, user.getId());
+        return ResponseEntity.ok(ApiResponse.success("Activity deleted successfully", null));
+    }
+
+    /**
+     * User bulk-deletes multiple of their own DECLARED / PENDING activities.
+     * Approved / Verified IDs are silently skipped — ownership is enforced.
+     * DELETE /api/activities/bulk
+     * Body: { "ids": [1, 2, 3] }
+     */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Bulk delete user's own eligible activities")
+    @DeleteMapping("/bulk")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> bulkDeleteUserActivities(
+            @RequestBody Map<String, List<Long>> body) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalArgumentException("User not authenticated");
+
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email);
+        if (user == null) throw new IllegalArgumentException("User not found");
+
+        List<Long> ids = body != null ? body.get("ids") : null;
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("No IDs provided");
+
+        int deleted = activityService.bulkDeleteUserActivities(ids, user.getId());
+        return ResponseEntity.ok(ApiResponse.success(
+                deleted + " activit" + (deleted == 1 ? "y" : "ies") + " deleted",
+                Map.of("deleted", deleted)));
     }
 
     /* Admin endpoints have been moved to AdminActivityController for security */

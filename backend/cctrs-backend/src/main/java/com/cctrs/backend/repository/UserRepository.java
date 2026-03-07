@@ -20,12 +20,28 @@ public class UserRepository {
     }
 
     public User save(User user) {
-        String sql = "INSERT INTO users (name, email, username, password, role, points, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        if (user.getId() != null) {
+            // UPDATE existing user
+            jdbcTemplate.update(
+                    "UPDATE users SET name = ?, email = ?, username = ?, password = ?, role = ?, points = ?, email_verified = ? WHERE id = ?",
+                    user.getName(),
+                    user.getEmail(),
+                    user.getUsername(),
+                    user.getPassword(),
+                    user.getRole(),
+                    user.getPoints(),
+                    user.getEmailVerified() != null ? user.getEmailVerified() : false,
+                    user.getId()
+            );
+            return user;
+        }
 
+        // INSERT new user
+        String sql = "INSERT INTO users (name, email, username, password, role, points, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "ID" });
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "id" });
             ps.setString(1, user.getName());
             ps.setString(2, user.getEmail());
             ps.setString(3, user.getUsername());
@@ -64,6 +80,14 @@ public class UserRepository {
         return users.isEmpty() ? null : users.get(0);
     }
 
+    public User findByEmailIgnoreCase(String email) {
+        List<User> users = jdbcTemplate.query(
+                "SELECT * FROM users WHERE LOWER(email) = LOWER(?)",
+                new UserRowMapper(),
+                email);
+        return users.isEmpty() ? null : users.get(0);
+    }
+
     public User findByUsername(String username) {
         List<User> users = jdbcTemplate.query(
                 "SELECT * FROM users WHERE username = ?",
@@ -79,15 +103,16 @@ public class UserRepository {
                 userId);
     }
 
-    /**
-     * Find top users by points for leaderboard
-     * 
-     * @param limit Number of top users to return
-     * @return List of top users ordered by points DESC
-     */
+    public void updatePassword(Long userId, String encodedPassword) {
+        jdbcTemplate.update(
+                "UPDATE users SET password = ? WHERE id = ?",
+                encodedPassword,
+                userId);
+    }
+
     public List<User> findTopUsersByPoints(int limit) {
         return jdbcTemplate.query(
-                "SELECT * FROM users ORDER BY points DESC LIMIT ?",
+                "SELECT * FROM users WHERE role != 'ADMIN' ORDER BY points DESC LIMIT ?",
                 new UserRowMapper(),
                 limit);
     }

@@ -1,0 +1,63 @@
+# ===============================
+# PRODUCTION PROFILE — Supabase PostgreSQL (Pooler)
+# Activated by: SPRING_PROFILES_ACTIVE=prod
+# SMTP_USERNAME and SMTP_PASSWORD remain env-based; database values are hard-coded.
+# ===============================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+    username: postgres.bowjibnflublwammctiv
+    password: CCTRSAPP@gmail.com
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 10000
+      initialization-fail-timeout: 10000
+
+  # SQL INIT — NEVER auto-run; schema is managed via migration scripts
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+  # Disable H2 console in production
+  h2:
+    console:
+      enabled: false
+
+  # Mail — reads from env vars (same credentials as dev)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  mail:
+    from: ${SMTP_USERNAME}
+
+# ===============================
+# SERVER
+# ===============================
+server:
+  port: ${PORT:8080}
+
+# ===============================
+# LOGGING
+# ===============================
+logging:
+  level:
+    root: INFO
+    com.cctrs.backend: INFO
+    org.springframework: WARN

@@ -23,8 +23,16 @@ public class Activity {
     private String proofImage;
     private Double latitude;
     private Double longitude;
+    private Boolean isFlagged;
+    private String flagReason;
+    private Double flagDistanceMeters;
     private LocalDateTime proofTime;
     private LocalDateTime createdAt;
+
+    // Soft-delete: hidden from all UI views, scores preserved
+    private boolean deleted = false;
+    // Auto-archive: auto-set after 30 days, hidden from default views
+    private boolean archived = false;
 
     public Activity() {}
 
@@ -76,6 +84,22 @@ public class Activity {
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
 
+    public Boolean getIsFlagged() { return isFlagged; }
+    public void setIsFlagged(Boolean flagged) { isFlagged = flagged; }
+
+    public String getFlagReason() { return flagReason; }
+    public void setFlagReason(String flagReason) { this.flagReason = flagReason; }
+
+    public Double getFlagDistanceMeters() { return flagDistanceMeters; }
+    public void setFlagDistanceMeters(Double flagDistanceMeters) { this.flagDistanceMeters = flagDistanceMeters; }
+
     public LocalDateTime getProofTime() { return proofTime; }
     public void setProofTime(LocalDateTime proofTime) { this.proofTime = proofTime; }
+
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
+
+    public boolean isArchived() { return archived; }
+    public void setArchived(boolean archived) { this.archived = archived; }
 }
+
