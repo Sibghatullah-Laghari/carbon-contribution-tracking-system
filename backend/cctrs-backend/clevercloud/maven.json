@@ -1,7 +1,7 @@
 {
   "build": {
     "type": "maven",
-    "goal": "package -DskipTests"
+    "goal": "package -DskipTests -Dmaven.toolchain.skip=true"
   },
   "deploy": {
     "jarName": "target/backend-0.0.1-SNAPSHOT.jar"
