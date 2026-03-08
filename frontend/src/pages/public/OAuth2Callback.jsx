@@ -1,18 +1,29 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 export default function OAuth2Callback() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { login } = useAuth();
 
     useEffect(() => {
         const token = searchParams.get("token");
         const role = searchParams.get("role");
 
-        if (token) {
-            // Save token same way as normal login
-            localStorage.setItem("token", token);
-            localStorage.setItem("role", role);
+        if (token && role) {
+            // Decode email from JWT payload (same field AuthContext uses)
+            let email = null;
+            try {
+                email = JSON.parse(atob(token.split(".")[1])).sub ?? null;
+            } catch {
+                // token is malformed — fall through to error redirect
+                navigate("/login?error=oauth_failed", { replace: true });
+                return;
+            }
+
+            // Use AuthContext.login so React state is updated alongside localStorage
+            login(token, role, email);
 
             // Redirect based on role
             if (role === "ADMIN") {
@@ -23,7 +34,7 @@ export default function OAuth2Callback() {
         } else {
             navigate("/login?error=oauth_failed", { replace: true });
         }
-    }, []);
+    }, [searchParams, navigate, login]);
 
     return (
         <div style={{
