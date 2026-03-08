@@ -4,6 +4,7 @@ import com.cctrs.backend.model.User;
 import com.cctrs.backend.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -16,6 +17,9 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+
+    @Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
 
     public OAuth2SuccessHandler(UserRepository userRepository, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
@@ -33,7 +37,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String name  = oAuth2User.getAttribute("name");
 
         if (email == null) {
-            response.sendRedirect("http://localhost:5173/login?error=no_email");
+            response.sendRedirect(frontendUrl + "/login?error=no_email");
             return;
         }
 
@@ -63,7 +67,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
 
         // Redirect to frontend with token
-        response.sendRedirect("http://localhost:5173/oauth2/callback?token=" + token + "&role=" + user.getRole());
+        response.sendRedirect(frontendUrl + "/oauth2/callback?token=" + token + "&role=" + user.getRole());
     }
 }
 
