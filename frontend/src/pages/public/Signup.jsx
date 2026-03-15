@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axios.js";
+import { API_BASE_URL } from "../../config/apiBaseUrl";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function Signup() {
   };
 
   const handleGoogleSignup = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/oauth2/authorization/google`;
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
   };
 
   return (
