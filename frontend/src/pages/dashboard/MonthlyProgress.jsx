@@ -157,6 +157,89 @@ const MonthlyProgress = () => {
     return { total, approved, rejected, pending, trees, transport, recycling, other, totalPts, approvalRate };
   }, [filteredActivities]);
 
+  // ── Month-over-month performance insight ─────────────────────
+  const performanceInsight = useMemo(() => {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const currentMonthPoints = activities.reduce((sum, a) => {
+      const d = getActivityDate(a);
+      if (!d) return sum;
+      if (d >= currentMonthStart && d < nextMonthStart && a.status === 'APPROVED') {
+        return sum + (a.points || 0);
+      }
+      return sum;
+    }, 0);
+
+    const previousMonthPoints = activities.reduce((sum, a) => {
+      const d = getActivityDate(a);
+      if (!d) return sum;
+      if (d >= previousMonthStart && d < currentMonthStart && a.status === 'APPROVED') {
+        return sum + (a.points || 0);
+      }
+      return sum;
+    }, 0);
+
+    const isBothZero = previousMonthPoints === 0 && currentMonthPoints === 0;
+    if (isBothZero) {
+      return {
+        title: '📊 Performance Insight',
+        icon: '➡',
+        message: 'Start contributing this month to see your progress here.',
+        color: '#6b7280',
+        background: '#f3f4f6',
+        border: '#e5e7eb',
+      };
+    }
+
+    if (previousMonthPoints === 0 && currentMonthPoints > 0) {
+      return {
+        title: '📊 Performance Insight',
+        icon: '📈',
+        message: 'Your contribution increased by 100% compared to last month. Great progress!',
+        color: '#15803d',
+        background: '#ecfdf3',
+        border: '#bbf7d0',
+      };
+    }
+
+    const rawChange = ((currentMonthPoints - previousMonthPoints) / previousMonthPoints) * 100;
+    const percentageChange = Math.round(rawChange);
+
+    if (percentageChange > 0) {
+      return {
+        title: '📊 Performance Insight',
+        icon: '📈',
+        message: `Your contribution increased by ${percentageChange}% compared to last month. Great progress!`,
+        color: '#15803d',
+        background: '#ecfdf3',
+        border: '#bbf7d0',
+      };
+    }
+
+    if (percentageChange < 0) {
+      return {
+        title: '📊 Performance Insight',
+        icon: '📉',
+        message: `Your contribution decreased by ${Math.abs(percentageChange)}% compared to last month. Try to contribute more this month.`,
+        color: '#c2410c',
+        background: '#fff7ed',
+        border: '#fed7aa',
+      };
+    }
+
+    return {
+      title: '📊 Performance Insight',
+      icon: '➡',
+      message: 'Your contribution is the same as last month.',
+      color: '#6b7280',
+      background: '#f3f4f6',
+      border: '#e5e7eb',
+    };
+  }, [activities]);
+
   // ── Timeline data (granularity-aware) — same helper as Admin ──
   const timelineData = useMemo(
     () => buildTimelineData(filteredActivities, granularity),
@@ -320,6 +403,27 @@ const MonthlyProgress = () => {
               <div style={{ fontSize: '0.72rem', opacity: 0.75 }}>{icon} {label}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* PERFORMANCE INSIGHT */}
+      <div style={card({
+        textAlign: 'center',
+        background: performanceInsight.background,
+        border: `1.5px solid ${performanceInsight.border}`,
+      })}>
+        <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#1a1a1a', marginBottom: '0.4rem' }}>
+          {performanceInsight.title}
+        </div>
+        <div style={{
+          fontSize: '1.05rem',
+          fontWeight: 800,
+          color: performanceInsight.color,
+          lineHeight: 1.45,
+          maxWidth: '760px',
+          margin: '0 auto',
+        }}>
+          {performanceInsight.icon} {performanceInsight.message}
         </div>
       </div>
 
