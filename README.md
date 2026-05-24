@@ -65,14 +65,11 @@ For details, see:
 - PostgreSQL (production profile)
 - SQL bootstrap + migration scripts in repository
 
-## Run Locally
-
 ## 1) Backend
 ```bash
 cd backend/cctrs-backend
 ./mvnw spring-boot:run
 ```
-
 Expected default backend URL: `http://localhost:8080`
 
 ## 2) Frontend
@@ -84,11 +81,6 @@ npm run dev
 
 Expected default frontend URL: `http://localhost:5173`
 
-## 3) Optional API smoke test
-From repo root:
-```bash
-bash test-api.sh
-```
 
 ## Notes on Accuracy Updates
 
