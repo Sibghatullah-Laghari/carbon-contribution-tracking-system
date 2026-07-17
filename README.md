@@ -1,7 +1,8 @@
 # Carbon Contribution Tracking & Reward System (CCTRS)
 
-> **📅 README Status:** Updated on **2026-07-16** – reflects the current fully implemented state of the project.  
-> **🚀 Live Demo:** [Coming soon – deployment in progress]
+> **📅 README Status:** Updated on **2026-07-17** – reflects the current fully implemented state of the project.  
+> **🚀 Live Demo:** [Coming soon – deployment in progress]  
+> **📌 Today’s note:** Minor documentation refresh and added developer tips.
 
 CCTRS is a full-stack web application where users submit eco-friendly activities, upload proof (image + location + time), and receive points after admin review. The platform also provides progress analytics, leaderboard rankings, and a public Q&A channel.
 
