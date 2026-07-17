@@ -4,8 +4,9 @@
 # ============================================
 # Purpose:  Launches the Spring Boot JAR and
 #           runs a quick sanity test on the API.
-# Updated:  2026-07-16
+# Updated:  2026-07-17   <-- today's date
 # Author:   DevOps Team
+# Note:     This script is version‑controlled for daily CI checks.
 # ============================================
 
 set -e  # Exit on error
