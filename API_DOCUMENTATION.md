@@ -20,3 +20,4 @@ All error responses follow this standard format:
   "message": "Validation failed: proof image is required",
   "path": "/api/activities/1/proof"
 }
+..
