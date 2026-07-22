@@ -107,7 +107,7 @@ Use this as a quick endpoint sanity check in addition to UI-driven verification.
 - Admin activities: `/admin/activities`, `/admin/activities/search`, `/admin/activities/approve/{id}`
 - Reports: `/api/report/summary`, `/api/report/graph`, `/api/report/progress`
 - Leaderboard: `/api/leaderboard`
-- Q&A: `/public/questions`, `/admin/questions/{id}/answer`
+- Q&A: `/public/questions`, `/admin/questions/{id}/answer`.
 
 ---
 
