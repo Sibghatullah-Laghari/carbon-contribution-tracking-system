@@ -91,7 +91,7 @@ Data flow: React UI -> Axios HTTP requests -> Spring Boot controllers/services/r
 ### 4.1 Primary Tables
 - `users`: identity, auth profile fields, points, role, verification state.
 - `activities`: lifecycle status, proof metadata, flags, rejection reason.
-- `proof_sessions`: proof-start session records.
+- `proof_sessions`: proof-start session records..
 - `questions`: public question + admin answer.
 - `user_daily_limits`: anti-abuse counters.
 
