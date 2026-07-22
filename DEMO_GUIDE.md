@@ -37,7 +37,7 @@ Run backend:
 ./mvnw spring-boot:run
 ```
 
-Backend starts at `http://localhost:8080` by default.
+Backend starts at `http://localhost:8080` by default...
 
 ---
 
