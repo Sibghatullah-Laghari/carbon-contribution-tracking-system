@@ -77,7 +77,7 @@ curl -s -X GET "${BASE_URL}/api/users" \
 echo ""
 
 # ---- Step 4: Summary ----
-echo "============================================"
+echo "============================================".
 echo "✅ All tests completed successfully!"
 echo "📌 Notes:"
 echo "   - Protected endpoints (like /api/users) require a valid JWT."
