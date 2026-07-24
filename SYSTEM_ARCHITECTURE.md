@@ -69,7 +69,7 @@ Data flow: React UI -> Axios HTTP requests -> Spring Boot controllers/services/r
 - `service/`: business rules (activity lifecycle, reporting, user logic, email).
 - `repository/`: persistence queries and row mappers.
 - `model/` + `dto/`: entities and API payload contracts.
-- `startup/`: data initialization/migration runner hooks.
+- `startup/`: data initialization/migration runner hooks..
 - `scheduler/`: timed job shell (archive-related workflow placeholder).
 
 ### 3.3 Security Model
