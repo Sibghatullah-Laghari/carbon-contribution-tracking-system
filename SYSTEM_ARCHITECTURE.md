@@ -23,7 +23,7 @@ Data flow: React UI -> Axios HTTP requests -> Spring Boot controllers/services/r
 ### 2.2 Entry & App Composition
 - `src/main.jsx` mounts the app and global styles.
 - `src/App.jsx` defines route trees and auth guards.
-- `AuthProvider` (`src/context/AuthContext.jsx`) manages token/session state.
+- `AuthProvider` (`src/context/AuthContext.jsx`) manages token/session state..
 
 ### 2.3 Routing Structure
 
