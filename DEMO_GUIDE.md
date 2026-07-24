@@ -52,7 +52,7 @@ npm run dev
 
 Frontend runs at `http://localhost:5173` by default..
 
-Ensure frontend API base URL points to backend (see `src/config/apiBaseUrl.js` and env).
+Ensure frontend API base URL points to backend (see `src/config/apiBaseUrl.js` and env)..
 
 ---
 
