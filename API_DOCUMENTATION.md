@@ -10,7 +10,7 @@
 
 ## 📋 Error Handling
 
-All error responses follow this standard format:
+All error responses follow this standard format:-
 
 ```json
 {
