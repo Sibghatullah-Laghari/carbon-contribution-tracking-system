@@ -65,11 +65,11 @@ For detailed documentation, see:
 ## 🛠️ Tech Stack (Actual)
 
 ### Frontend
-- React 18
-- Vite 5
-- React Router 6
-- Axios
-- Chart.js / react-chartjs-2 / Recharts
+- React 18.
+- Vite 5.
+- React Router 6.
+- Axios.
+- Chart.js / react-chartjs-2 / Recharts.
 
 ### Backend
 - Java 17
