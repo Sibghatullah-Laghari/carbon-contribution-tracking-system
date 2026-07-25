@@ -13,7 +13,7 @@ This guide is for judges to run and test CCTRS quickly.
 
 ---
 
-## 2. Backend Setup
+## 2. Backend Setup:-
 
 ```bash
 cd backend/cctrs-backend
