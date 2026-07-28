@@ -10,7 +10,7 @@ CCTRS is a full-stack web application where users submit eco-friendly activities
 
 ## 📌 Current Implementation Status
 
-This repository is **actively implemented** (not just in design phase):
+This repository is **actively implemented** (not just in design phase):-
 
 - ✅ React + Vite frontend with authenticated user and admin dashboards.
 - ✅ Spring Boot backend with JWT auth, OTP signup flow, password reset, and Google OAuth2 login.
