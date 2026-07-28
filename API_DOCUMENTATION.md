@@ -2,7 +2,7 @@
 
 > 📅 **Last updated:** 2026-07-17  
 > 📌 **Base URL (local default):** `http://localhost:8080`  
-> 🔐 **Auth:** Most endpoints require `Authorization: Bearer <jwt>` header.
+> 🔐 **Auth:** Most endpoints require `Authorization: Bearer <jwt>` header..
 
 **Response convention:** Many routes return an `ApiResponse<T>` wrapper (`message`, `data`, `success`, etc.), though a few (like proof start) return raw objects.
 
