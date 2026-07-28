@@ -1,6 +1,6 @@
 # DEMO_GUIDE.md
 
-This guide is for judges to run and test CCTRS quickly.
+This guide is for judges to run and test CCTRS quickly..
 
 ---
 
