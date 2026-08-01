@@ -123,4 +123,4 @@ Some scripts in `database/` are historical or dialect-specific and may not be di
 - `migration_add_rejection_reason.sql` uses MySQL-style `AFTER status` and `DESCRIBE`.
 - Root `database/schema.sql` includes legacy `AUTO_INCREMENT` syntax and duplicate ALTER patterns.
 
-For backend runtime behavior, treat `backend/cctrs-backend/src/main/resources/schema.sql` as the primary canonical schema and apply targeted migration files for production changes.
+For backend runtime behavior, treat `backend/cctrs-backend/src/main/resources/schema.sql` as the primary canonical schema and apply targeted migration files for production changes
