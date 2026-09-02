@@ -61,5 +61,3 @@ Thumbs.db
 # Local / temp databases
 data/
 *.db
-*.lock.db
-*.trace.db
