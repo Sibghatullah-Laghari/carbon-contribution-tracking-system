@@ -122,3 +122,9 @@ Judges can collect the following artifacts:
 - Public question submission and admin answer path.
 .
 This evidence demonstrates complete end-to-end functionality across frontend, backend APIs, and database persistence..
+
+
+,,,,,,,,
+
+.......
+//////
