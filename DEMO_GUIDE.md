@@ -123,8 +123,3 @@ Judges can collect the following artifacts:
 .
 This evidence demonstrates complete end-to-end functionality across frontend, backend APIs, and database persistence..
 
-
-,,,,,,,,
-
-.......
-//////
