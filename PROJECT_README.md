@@ -71,4 +71,4 @@ CCTRS is a full-stack platform for tracking eco-friendly user activities, collec
 - `docs/development-plan.md`
 - `docs/er-diagram.md`
 
-Use the generated files in `docs/` below for complete architecture/API/folder documentation.
+Use the generated files in `docs/` below for complete architecture/API/folder documentation..
