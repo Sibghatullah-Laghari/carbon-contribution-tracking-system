@@ -118,4 +118,4 @@ Data flow: React UI -> Axios HTTP requests -> Spring Boot controllers/services/r
 
 - API endpoints: `API_DOCUMENTATION.md`
 - Table/column/index details: `DATABASE_SCHEMA.md`
-
+....
