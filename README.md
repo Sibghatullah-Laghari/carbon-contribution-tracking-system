@@ -83,11 +83,11 @@ For detailed documentation, see:
 - PostgreSQL (production profile)
 - SQL bootstrap + migration scripts in repository
 
-> 🧪 *Testing:* Backend uses JUnit & Mockito; frontend uses Vitest (coverage > 70%).
+> 🧪 *Testing:* Backend uses JUnit & Mockito; frontend uses Vitest (coverage > 70%).,
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Quick Start Guide,
 
 ### 1) Backend
 ```bash
