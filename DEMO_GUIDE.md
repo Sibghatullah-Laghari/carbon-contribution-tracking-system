@@ -118,7 +118,7 @@ Judges can collect the following artifacts:
 - Activity created + proof submitted.
 - Admin approval/rejection actions.
 - Updated points/leaderboard.
-- Report pages showing monthly/progress data.
+- Report pages showing monthly/progress data..
 - Public question submission and admin answer path.
 .
 This evidence demonstrates complete end-to-end functionality across frontend, backend APIs, and database persistence..
