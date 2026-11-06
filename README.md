@@ -74,7 +74,7 @@ For detailed documentation, see:
 ### Backend
 - Java 17
 - Spring Boot 3.x
-- Spring Security + JWT filter
+- Spring Security + JWT filter.
 - Spring OAuth2 Client
 - Spring JDBC/JPA mix
 - springdoc OpenAPI/Swagger (available at `/swagger-ui.html`)
