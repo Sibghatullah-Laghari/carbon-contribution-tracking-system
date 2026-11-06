@@ -112,7 +112,7 @@ Per-user per-day anti-abuse counters.
 - `activity_count` INT DEFAULT 0
 - `trees_declared` INT DEFAULT 0
 
-### Constraints
+### Constraints.
 - `UNIQUE(user_id, date)`
 
 ---
