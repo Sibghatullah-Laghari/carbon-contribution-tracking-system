@@ -62,7 +62,7 @@ Ensure frontend API base URL points to backend (see `src/config/apiBaseUrl.js` a
 1. Open frontend at `http://localhost:5173`.
 2. Create account via signup (OTP flow).
 3. Verify OTP.
-4. Login and confirm dashboard access.
+4. Login and confirm dashboard access..
 
 ### Step B — Submit User Activity
 1. Navigate to **Submit Activity**.
