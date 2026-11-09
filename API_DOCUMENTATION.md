@@ -21,7 +21,3 @@ All error responses follow this standard format:-
   "path": "/api/activities/1/proof"
 }
 
-
-
-,,,,,,
-......
