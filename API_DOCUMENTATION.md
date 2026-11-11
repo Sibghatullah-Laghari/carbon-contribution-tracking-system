@@ -8,7 +8,7 @@
 
 ---
 
-## 📋 Error Handling
+## 📋 Error Handling:-
 
 All error responses follow this standard format
 
