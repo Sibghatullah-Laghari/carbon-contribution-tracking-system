@@ -13,7 +13,7 @@ The backend is configured for PostgreSQL in production profile.
 Primary user identity and account table.
 
 ### Columns
-- `id` BIGINT identity, PK
+- `id` BIGINT identity, PK.
 - `name` VARCHAR(100) NOT NULL
 - `email` VARCHAR(100) NOT NULL UNIQUE
 - `username` VARCHAR(100) NOT NULL UNIQUE
