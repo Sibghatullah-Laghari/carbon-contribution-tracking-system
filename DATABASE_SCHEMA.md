@@ -4,7 +4,7 @@ This document summarizes the database structure based on:
 - `backend/cctrs-backend/src/main/resources/schema.sql` (runtime bootstrap schema)
 - migration scripts in `database/`
 
-The backend is configured for PostgreSQL in production profile.
+The backend is configured for PostgreSQL in production profile..
 
 ---
 
