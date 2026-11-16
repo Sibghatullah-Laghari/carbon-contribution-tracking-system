@@ -17,7 +17,7 @@ This guide is for judges to run and test CCTRS quickly.
 
 ```bash
 cd backend/cctrs-backend
-cp .env.example .env   # optional reference; actual env vars can be exported in shell
+cp .env.example .env   # optional reference; actual env vars can be exported in shell.
 ```
 
 Set required environment variables before running:
